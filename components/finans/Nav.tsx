@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import Link, { useLinkStatus } from 'next/link'
 import { usePathname } from 'next/navigation'
 import { BarChart3, CreditCard, FileUp, LayoutDashboard, List, MessageSquare, PiggyBank, Settings, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,17 @@ const ITEMS = [
   { href: '/finans/sohbet', label: 'Danışman', icon: MessageSquare },
   { href: '/finans/ayarlar', label: 'Ayarlar', icon: Settings },
 ]
+
+// Tıklanan menü öğesinde, sayfa gelene kadar sabit boyutlu bir nokta yanıp söner (layout kaymaz)
+function PendingDot() {
+  const { pending } = useLinkStatus()
+  return (
+    <span
+      aria-hidden
+      className={cn('ml-auto w-1.5 h-1.5 rounded-full bg-[#00D4FF] transition-opacity', pending ? 'opacity-100 animate-pulse' : 'opacity-0')}
+    />
+  )
+}
 
 export function FinansNav() {
   const pathname = usePathname()
@@ -41,6 +52,7 @@ export function FinansNav() {
             >
               <Icon className="w-4 h-4" />
               {label}
+              <PendingDot />
             </Link>
           ))}
         </nav>

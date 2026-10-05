@@ -22,7 +22,9 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // getClaims: süresi dolan oturumu yeniler ve JWT'yi (asimetrik anahtarla) yerelde doğrular
+  const { data } = await supabase.auth.getClaims()
+  const user = data?.claims?.sub ? data.claims : null
 
   const protectedPaths = ['/finans']
   // Geliştirmede FINANS_DEMO=1 iken finans modülü örnek veriyle girişsiz açılır

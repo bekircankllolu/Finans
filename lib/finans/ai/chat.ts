@@ -9,7 +9,7 @@ import { installmentLoadByMonth } from '../calc/installments'
 import { annuityPayment } from '../calc/loans'
 import type { Snapshot } from '../calc/snapshot'
 import type { FinanceData } from '../types'
-import { ADVISOR_MODEL, anthropic } from './client'
+import { anthropic, CHAT_MODEL } from './client'
 import { snapshotForAI } from './context'
 import { ADVISOR_PERSONA } from './report'
 
@@ -34,12 +34,6 @@ const PurchaseInput = z.object({
 const PayoffInput = z.object({ extra_monthly: z.number().min(0) })
 
 export const CHAT_TOOLS: Anthropic.Tool[] = [
-  {
-    name: 'get_overview',
-    description:
-      'Kullanıcının tüm finansal özetini döner: net değer, son 12 ay gelir/gider, odak ay kategori kırılımı, kartlar, krediler, taksitler, düzenli ödemeler, 6 aylık nakit akışı tahmini, borç stratejileri, bütçe, hedefler ve uyarılar. Bir soruya başlarken önce bunu çağır.',
-    input_schema: { type: 'object', properties: {} },
-  },
   {
     name: 'query_transactions',
     description:
@@ -90,9 +84,6 @@ function runTool(name: string, input: unknown, s: Snapshot, data: FinanceData): 
   const catByName = new Map(data.categories.map(c => [c.name.toLocaleLowerCase('tr-TR'), c]))
 
   switch (name) {
-    case 'get_overview':
-      return snapshotForAI(s, data)
-
     case 'query_transactions': {
       const q = QueryInput.parse(input)
       const cat = q.category ? catByName.get(q.category.toLocaleLowerCase('tr-TR')) : undefined
@@ -184,10 +175,22 @@ function runTool(name: string, input: unknown, s: Snapshot, data: FinanceData): 
   }
 }
 
-const CHAT_SYSTEM = `${ADVISOR_PERSONA}
+const CHAT_INSTRUCTIONS = `${ADVISOR_PERSONA}
 
-Kullanıcının verilerine araçlarla erişirsin. Rakam vermeden önce mutlaka ilgili aracı çağır.
-Bugünün tarihi: {TODAY}. Cevapları Türkçe, kısa ve maddeli ver; tutarları TL ve binlik ayraçla yaz (ör. 12.500 TL).`
+Aşağıda kullanıcının güncel finansal özeti var (hesaplanmış rakamlar). Genel soruları doğrudan bu özetle cevapla;
+işlem listesi, kategori trendi veya simülasyon gerekiyorsa araçları çağır. Rakam uydurma.
+Cevapları Türkçe, kısa ve maddeli ver; tutarları TL ve binlik ayraçla yaz (ör. 12.500 TL).`
+
+// Talimat + özet tek blokta ve cache'li: aynı gün içindeki sonraki sorular bu kısmı yeniden işlemez.
+function chatSystem(snapshot: Snapshot, data: FinanceData): Anthropic.TextBlockParam[] {
+  return [
+    {
+      type: 'text',
+      text: `${CHAT_INSTRUCTIONS}\n\nBugün: ${snapshot.today}\n\nFinansal özet (JSON):\n${JSON.stringify(snapshotForAI(snapshot, data))}`,
+      cache_control: { type: 'ephemeral' },
+    },
+  ]
+}
 
 export async function* runChat(
   history: Anthropic.MessageParam[],
@@ -195,14 +198,15 @@ export async function* runChat(
   data: FinanceData,
 ): AsyncGenerator<{ type: 'text'; text: string } | { type: 'tool'; name: string }, string> {
   const messages = [...history]
+  const system = chatSystem(snapshot, data)
   let finalText = ''
 
   for (let step = 0; step < 8; step++) {
     const stream = anthropic.messages.stream({
-      model: ADVISOR_MODEL,
+      model: CHAT_MODEL,
       max_tokens: 16000,
       output_config: { effort: 'medium' },
-      system: CHAT_SYSTEM.replace('{TODAY}', snapshot.today),
+      system,
       tools: CHAT_TOOLS,
       messages,
     })

@@ -1,4 +1,5 @@
-import type { SupabaseClient, User } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { FinanceUser } from './server'
 import { DEFAULT_CATEGORIES } from './defaults'
 import { addMonths, dateInMonth, monthKey, todayISO } from './calc/dates'
 import { buildSchedule } from './calc/loans'
@@ -9,7 +10,7 @@ export function isDemoMode(): boolean {
   return process.env.FINANS_DEMO === '1' && process.env.NODE_ENV !== 'production'
 }
 
-export const DEMO_USER = { id: '00000000-0000-4000-8000-000000000000', email: 'demo@example.com' } as User
+export const DEMO_USER: FinanceUser = { id: '00000000-0000-4000-8000-000000000000', email: 'demo@example.com' }
 
 // Her sorguya boş sonuç dönen zincirlenebilir sahte istemci
 export function demoSupabase(): SupabaseClient {

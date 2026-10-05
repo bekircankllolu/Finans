@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useTransition } from 'react'
+import { useOptimistic, useTransition } from 'react'
 import { AlertOctagon, AlertTriangle, Info, X } from 'lucide-react'
 import { dismissAlert } from '@/app/finans/actions'
 import type { Alert } from '@/lib/finans/calc/alerts'
@@ -13,8 +13,10 @@ const ICONS = {
 }
 
 export function AlertList({ alerts, limit }: { alerts: Alert[]; limit?: number }) {
-  const [pending, start] = useTransition()
-  const shown = limit ? alerts.slice(0, limit) : alerts
+  const [, start] = useTransition()
+  // Kapatılan uyarı sunucu yanıtı beklenmeden listeden düşer
+  const [visible, hide] = useOptimistic(alerts, (current, key: string) => current.filter(a => a.key !== key))
+  const shown = limit ? visible.slice(0, limit) : visible
   if (!shown.length) return <p className="text-sm text-[#8B8B9E]">Şu an dikkat gerektiren bir şey yok.</p>
 
   return (
@@ -22,7 +24,7 @@ export function AlertList({ alerts, limit }: { alerts: Alert[]; limit?: number }
       {shown.map(a => {
         const { icon: Icon, color, label } = ICONS[a.severity]
         return (
-          <li key={a.key} className="flex gap-3 rounded-xl bg-white/[0.03] border border-white/6 p-3" style={{ opacity: pending ? 0.7 : 1 }}>
+          <li key={a.key} className="flex gap-3 rounded-xl bg-white/[0.03] border border-white/6 p-3">
             <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color }} aria-label={label} />
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium">
@@ -38,7 +40,12 @@ export function AlertList({ alerts, limit }: { alerts: Alert[]; limit?: number }
             </div>
             <button
               type="button"
-              onClick={() => start(async () => void (await dismissAlert(a.key)))}
+              onClick={() =>
+                start(async () => {
+                  hide(a.key)
+                  await dismissAlert(a.key)
+                })
+              }
               className="text-[#5A5A6E] hover:text-[#F0F0F5] shrink-0 self-start p-1 -m-1"
               aria-label="Uyarıyı kapat"
             >

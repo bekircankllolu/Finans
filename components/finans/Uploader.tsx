@@ -1,13 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, FileUp, Loader2, XCircle } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { buttonClass, Field, inputClass } from './ui'
 
-type Item = { name: string; state: 'uploading' | 'parsing' | 'done' | 'error'; id?: string; error?: string }
+type Item = { name: string; state: 'uploading' | 'parsing' | 'done' | 'error'; id?: string; error?: string; startedAt?: number }
 
 const ACCEPT = '.pdf,.csv,.txt,.xlsx,image/png,image/jpeg,image/webp'
 const MAX_BYTES = 20 * 1024 * 1024
@@ -47,7 +47,7 @@ export function Uploader({ userId, accounts }: { userId: string; accounts: { id:
         })
         const created = await res.json()
         if (!res.ok) throw new Error(created.error)
-        update(idx, { state: 'parsing', id: created.id })
+        update(idx, { state: 'parsing', id: created.id, startedAt: Date.now() })
 
         const parse = await fetch(`/api/finans/statements/${created.id}/parse`, { method: 'POST' })
         const parsed = await parse.json().catch(() => ({}))
@@ -129,7 +129,7 @@ export function Uploader({ userId, accounts }: { userId: string; accounts: { id:
               <span className="truncate flex-1">{it.name}</span>
               <span className="text-xs text-[#8B8B9E] shrink-0">
                 {it.state === 'uploading' && 'Yükleniyor…'}
-                {it.state === 'parsing' && 'AI okuyor… (1-2 dk)'}
+                {it.state === 'parsing' && it.startedAt && <ParsingTimer since={it.startedAt} />}
                 {it.state === 'error' && <span className="text-[#f08a8a]">{it.error}</span>}
                 {it.state === 'done' && it.id && (
                   <Link href={`/finans/yukle/${it.id}`} className="text-[#00D4FF]">
@@ -142,5 +142,21 @@ export function Uploader({ userId, accounts }: { userId: string; accounts: { id:
         </ul>
       )}
     </div>
+  )
+}
+
+// AI okuması uzun sürebildiği için geçen süreyi gösterir; ekran donmuş gibi görünmez
+function ParsingTimer({ since }: { since: number }) {
+  const [now, setNow] = useState(since)
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+  const sec = Math.max(0, Math.round((now - since) / 1000))
+  return (
+    <span className="tabular-nums">
+      AI okuyor… {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, '0')}
+      {sec > 45 && ' · uzun ekstrelerde 1-2 dk sürebilir'}
+    </span>
   )
 }

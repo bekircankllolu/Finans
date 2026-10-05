@@ -18,7 +18,6 @@ const SUGGESTIONS = [
 ]
 
 const TOOL_LABELS: Record<string, string> = {
-  get_overview: 'Finansal özet okunuyor',
   query_transactions: 'İşlemler taranıyor',
   get_category_trend: 'Kategori trendi hesaplanıyor',
   simulate_purchase: 'Alım simüle ediliyor',

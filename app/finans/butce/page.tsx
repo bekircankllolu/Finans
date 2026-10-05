@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { BudgetEditor } from '@/components/finans/BudgetEditor'
-import { ForecastChart } from '@/components/finans/charts'
+import { ForecastChart } from '@/components/finans/LazyCharts'
 import { Goals } from '@/components/finans/Goals'
 import { Card, PageHeader } from '@/components/finans/ui'
 import { formatMonthLong, formatTRY } from '@/lib/finans/format'

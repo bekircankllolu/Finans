@@ -18,7 +18,7 @@ Tüm hesaplar `lib/finans/calc/` altında deterministik TypeScript ile yapılır
 
 - Next.js 16 (App Router) + Tailwind CSS 4 + Recharts
 - Supabase (Auth magic link, Postgres + RLS, Storage)
-- Claude API (`@anthropic-ai/sdk`): ekstre okuma `claude-sonnet-5-5`, rapor ve danışman `claude-opus-5-5`
+- Claude API (`@anthropic-ai/sdk`): ekstre okuma ve danışman `claude-sonnet-5-5`, aylık rapor `claude-opus-5-5`
 - Vercel (deploy + cron)
 
 ## Kurulum
@@ -29,6 +29,7 @@ cp .env.example .env.local   # değerleri doldur
 ```
 
 1. Supabase SQL editor'de `supabase/finans_schema.sql` dosyasını çalıştır (tablolar, RLS ve `fin-statements` private storage bucket'ı).
+   - Şemayı bu sürümden önce kurduysan bir kez de `supabase/finans_perf.sql` çalıştır (hızlı RLS politikaları + indeksler).
 2. Supabase Auth ayarlarında e-posta (magic link) girişini aç; Site URL ve redirect URL'e `https://<alan-adın>/api/auth/callback` ekle.
 3. `npm run dev` → `http://localhost:3000` (otomatik `/finans`'a yönlenir).
 
@@ -63,7 +64,7 @@ supabase/finans_schema.sql
 
 ## Deploy (Vercel)
 
-Ortam değişkenlerini Vercel'e gir (`SUPABASE_SERVICE_ROLE_KEY` ve `CRON_SECRET` gizli). `vercel.json` günlük kur güncellemesi cron'unu tanımlar.
+Ortam değişkenlerini Vercel'e gir (`SUPABASE_SERVICE_ROLE_KEY` ve `CRON_SECRET` gizli). `vercel.json` fonksiyonları Supabase ile aynı bölgede (`fra1`, Frankfurt) çalıştırır ve günlük kur güncellemesi cron'unu tanımlar. Supabase projen başka bölgedeyse `regions` değerini ona göre değiştir.
 
 ### Eski ClipScript tabloları
 

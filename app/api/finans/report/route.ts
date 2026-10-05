@@ -12,9 +12,9 @@ const Input = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional() })
 
 export async function POST(request: Request) {
   try {
-    const { supabase } = await getFinanceUser()
+    const { supabase, user } = await getFinanceUser()
     const { month: requested } = Input.parse(await request.json().catch(() => ({})))
-    const data = await loadFinanceData(supabase)
+    const data = await loadFinanceData(supabase, user.id)
     const snapshot = buildSnapshot(data, todayISO())
     const month = requested ?? snapshot.focusMonth
     const context = snapshotForAI(snapshot, data)

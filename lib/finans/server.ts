@@ -1,11 +1,11 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
-import type { SupabaseClient, User } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { DEFAULT_CATEGORIES } from './defaults'
 import { getRates } from './fx'
 import { addMonths, monthKey, todayISO } from './calc/dates'
-import type { FinanceData } from './types'
+import type { FinanceData, Transaction } from './types'
 
 // FINANS_ALLOWED_EMAIL boşsa giriş yapmış herkes erişir; doluysa sadece listedekiler.
 export function isAllowedEmail(email: string | undefined | null): boolean {
@@ -23,12 +23,19 @@ export class FinanceAuthError extends Error {
   }
 }
 
-export async function getFinanceUser(): Promise<{ supabase: SupabaseClient; user: User }> {
+export interface FinanceUser {
+  id: string
+  email: string | null
+}
+
+// getClaims JWT'yi asimetrik anahtarla yerelde doğrular (Auth sunucusuna gitmez);
+// proje eski simetrik anahtardaysa SDK kendisi getUser'a düşer.
+export async function getFinanceUser(): Promise<{ supabase: SupabaseClient; user: FinanceUser }> {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new FinanceAuthError(401)
+  const { data } = await supabase.auth.getClaims()
+  const claims = data?.claims
+  if (!claims?.sub) throw new FinanceAuthError(401)
+  const user = { id: claims.sub, email: typeof claims.email === 'string' ? claims.email : null }
   if (!isAllowedEmail(user.email)) throw new FinanceAuthError(403)
   return { supabase, user }
 }
@@ -43,7 +50,10 @@ export function errorResponse(err: unknown): Response {
 
 export async function ensureDefaults(supabase: SupabaseClient, userId: string) {
   const { count } = await supabase.from('fin_categories').select('id', { count: 'exact', head: true })
-  if (count && count > 0) return
+  if (!count) await seedDefaults(supabase, userId)
+}
+
+async function seedDefaults(supabase: SupabaseClient, userId: string) {
   await supabase.from('fin_categories').upsert(
     DEFAULT_CATEGORIES.map((c, i) => ({
       user_id: userId,
@@ -58,13 +68,34 @@ export async function ensureDefaults(supabase: SupabaseClient, userId: string) {
 
 const num = (v: unknown) => (v == null ? null : Number(v))
 
-export async function loadFinanceData(supabase: SupabaseClient, monthsBack = 24): Promise<FinanceData> {
+const TX_COLUMNS =
+  'id, account_id, statement_id, date, description, merchant, amount, direction, currency, amount_try, category_id, installment_no, installment_total, source, notes'
+const PAGE = 1000
+
+// Supabase (PostgREST) tek sorguda en fazla 1000 satır döner; işlemler sayfa sayfa okunur.
+async function loadTransactions(supabase: SupabaseClient, since: string) {
+  const rows: Record<string, unknown>[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('fin_transactions')
+      .select(TX_COLUMNS)
+      .gte('date', since)
+      .order('date', { ascending: false })
+      .order('id')
+      .range(from, from + PAGE - 1)
+    if (error) throw new Error(error.message)
+    rows.push(...(data ?? []))
+    if (!data || data.length < PAGE) return rows
+  }
+}
+
+export async function loadFinanceData(supabase: SupabaseClient, userId: string, monthsBack = 24): Promise<FinanceData> {
   const since = `${addMonths(monthKey(todayISO()), -monthsBack)}-01`
   const [accounts, categories, transactions, statements, loans, installments, incomes, holdings, budgets, goals, dismissed, fx] =
     await Promise.all([
       supabase.from('fin_accounts').select('*').order('created_at'),
       supabase.from('fin_categories').select('*').order('sort'),
-      supabase.from('fin_transactions').select('*').gte('date', since).order('date', { ascending: false }).limit(20000),
+      loadTransactions(supabase, since),
       supabase
         .from('fin_statements')
         .select('id, account_id, kind, file_name, mime_type, status, period_start, period_end, due_date, total_debt, min_payment, closing_balance, error, created_at, confirmed_at')
@@ -79,8 +110,15 @@ export async function loadFinanceData(supabase: SupabaseClient, monthsBack = 24)
       getRates(supabase),
     ])
 
-  for (const r of [accounts, categories, transactions, statements, loans, installments, incomes, holdings, budgets, goals]) {
+  for (const r of [accounts, categories, statements, loans, installments, incomes, holdings, budgets, goals]) {
     if (r.error) throw new Error(r.error.message)
+  }
+
+  // İlk girişte kategoriler boşsa varsayılanları ekle (ayrı bir kontrol sorgusu atmadan)
+  let categoryRows = categories.data ?? []
+  if (categoryRows.length === 0) {
+    await seedDefaults(supabase, userId)
+    categoryRows = (await supabase.from('fin_categories').select('*').order('sort')).data ?? []
   }
 
   // PostgREST numeric alanları string dönebilir; hepsini number'a çeviriyoruz.
@@ -91,8 +129,8 @@ export async function loadFinanceData(supabase: SupabaseClient, monthsBack = 24)
       credit_limit: num(a.credit_limit),
       monthly_rate: num(a.monthly_rate),
     })),
-    categories: categories.data ?? [],
-    transactions: (transactions.data ?? []).map(t => ({ ...t, amount: Number(t.amount), amount_try: Number(t.amount_try) })),
+    categories: categoryRows,
+    transactions: transactions.map(t => ({ ...t, amount: Number(t.amount), amount_try: Number(t.amount_try) }) as Transaction),
     statements: (statements.data ?? []).map(s => ({
       ...s,
       total_debt: num(s.total_debt),

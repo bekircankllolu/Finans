@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { compareStrategies, type Debt } from '@/lib/finans/calc/debtStrategy'
 import { formatTRY } from '@/lib/finans/format'
-import { PayoffChart } from './charts'
+import { PayoffChart } from './LazyCharts'
 import { Badge, inputClass } from './ui'
 
 function months(n: number, feasible: boolean) {

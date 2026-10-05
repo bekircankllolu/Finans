@@ -7,7 +7,7 @@ import { categoryMap, signedExpense, signedIncome } from '@/lib/finans/calc/cash
 import { lastMonths, monthKey } from '@/lib/finans/calc/dates'
 import { formatDateTR, formatMonthLong, formatTRY } from '@/lib/finans/format'
 import type { Account, Category, Transaction } from '@/lib/finans/types'
-import { CategoryTrendChart } from './charts'
+import { CategoryTrendChart } from './LazyCharts'
 import { Badge, buttonClass, Card, Field, inputClass } from './ui'
 
 const PAGE = 300

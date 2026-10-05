@@ -86,6 +86,8 @@ create table if not exists public.fin_transactions (
 
 create index if not exists fin_transactions_user_date_idx on public.fin_transactions(user_id, date desc);
 create index if not exists fin_transactions_category_idx on public.fin_transactions(category_id);
+create index if not exists fin_transactions_statement_idx on public.fin_transactions(statement_id);
+create index if not exists fin_transactions_merchant_idx on public.fin_transactions(user_id, merchant);
 
 -- ─── Öğrenilen kategori kuralları ────────────────────────────
 create table if not exists public.fin_merchant_rules (
@@ -204,6 +206,17 @@ create table if not exists public.fin_chat_messages (
   created_at timestamptz not null default now()
 );
 
+-- Diğer indeksler (RLS user_id filtresi ve sık sorgular için)
+create index if not exists fin_accounts_user_idx on public.fin_accounts(user_id);
+create index if not exists fin_statements_user_created_idx on public.fin_statements(user_id, created_at desc);
+create index if not exists fin_statements_account_idx on public.fin_statements(account_id, period_end);
+create index if not exists fin_loans_user_idx on public.fin_loans(user_id);
+create index if not exists fin_loan_installments_user_idx on public.fin_loan_installments(user_id);
+create index if not exists fin_income_sources_user_idx on public.fin_income_sources(user_id);
+create index if not exists fin_holdings_user_idx on public.fin_holdings(user_id);
+create index if not exists fin_goals_user_idx on public.fin_goals(user_id);
+create index if not exists fin_chat_messages_user_created_idx on public.fin_chat_messages(user_id, created_at);
+
 -- ─── RLS ─────────────────────────────────────────────────────
 do $$
 declare t text;
@@ -217,7 +230,7 @@ begin
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists "owner_all" on public.%I', t);
     execute format(
-      'create policy "owner_all" on public.%I for all using (auth.uid() = user_id) with check (auth.uid() = user_id)',
+      'create policy "owner_all" on public.%I for all to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id)',
       t
     );
   end loop;

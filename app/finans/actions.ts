@@ -6,7 +6,7 @@ import { getFinanceUser, sha256 } from '@/lib/finans/server'
 import { buildSchedule } from '@/lib/finans/calc/loans'
 import { todayISO } from '@/lib/finans/calc/dates'
 import { dedupeKeys, normalizeMerchant, rulePattern } from '@/lib/finans/merchant'
-import { getRates } from '@/lib/finans/fx'
+import { getRates, refreshRates as refreshLiveRates } from '@/lib/finans/fx'
 import { toTRY } from '@/lib/finans/calc/networth'
 
 type Result = { ok: true } | { ok: false; error: string }
@@ -256,7 +256,7 @@ export async function deleteHolding(holdingId: string) {
 export async function refreshRates() {
   return run(async () => {
     const { supabase } = await getFinanceUser()
-    await getRates(supabase, true)
+    await refreshLiveRates(supabase)
   })
 }
 

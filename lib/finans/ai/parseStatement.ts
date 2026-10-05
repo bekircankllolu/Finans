@@ -127,7 +127,7 @@ export async function parseBankStatement(content: Anthropic.ContentBlockParam, c
   const stream = anthropic.messages.stream({
     model: PARSE_MODEL,
     max_tokens: 64000,
-    output_config: { effort: 'medium', format: zodOutputFormat(statementSchema(categoryNames)) },
+    output_config: { effort: 'low', format: zodOutputFormat(statementSchema(categoryNames)) },
     system: STATEMENT_SYSTEM,
     messages: [
       {
@@ -152,7 +152,7 @@ export async function parseLoanSchedule(content: Anthropic.ContentBlockParam): P
   const stream = anthropic.messages.stream({
     model: PARSE_MODEL,
     max_tokens: 32000,
-    output_config: { effort: 'medium', format: zodOutputFormat(loanSchema) },
+    output_config: { effort: 'low', format: zodOutputFormat(loanSchema) },
     system: LOAN_SYSTEM,
     messages: [{ role: 'user', content: [content, { type: 'text', text: 'Bu kredi ödeme planını çıkar.' }] }],
   })

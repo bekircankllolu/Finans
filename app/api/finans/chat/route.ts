@@ -18,11 +18,11 @@ export async function POST(request: Request) {
   } catch (err) {
     return errorResponse(err)
   }
-  const { supabase } = ctx
+  const { supabase, user } = ctx
 
   const [{ data: history }, data] = await Promise.all([
     supabase.from('fin_chat_messages').select('role, content').order('created_at', { ascending: false }).limit(20),
-    loadFinanceData(supabase),
+    loadFinanceData(supabase, user.id),
   ])
   const snapshot = buildSnapshot(data, todayISO())
   const messages: Anthropic.MessageParam[] = [
