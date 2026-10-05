@@ -54,6 +54,12 @@ create table if not exists public.fin_statements (
   total_debt numeric(14,2),
   min_payment numeric(14,2),
   closing_balance numeric(14,2),
+  bank text,
+  extra_paths text[] not null default '{}',
+  previous_balance numeric(14,2),
+  opening_balance numeric(14,2),
+  reconcile_status text check (reconcile_status in ('ok', 'mismatch', 'unknown')),
+  reconcile_diff numeric(14,2),
   -- AI çıktısı (onay öncesi taslak)
   parsed jsonb,
   error text,
@@ -78,6 +84,7 @@ create table if not exists public.fin_transactions (
   installment_no int,
   installment_total int,
   source text not null default 'statement' check (source in ('statement', 'manual')),
+  tx_type text,
   notes text,
   dedupe_hash text not null,
   created_at timestamptz not null default now(),
@@ -98,6 +105,19 @@ create table if not exists public.fin_merchant_rules (
   created_at timestamptz not null default now(),
   unique (user_id, pattern)
 );
+
+-- ─── Öğrenilen banka kuralları (yön / hariç tutma) ─────────
+create table if not exists public.fin_bank_rules (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  bank text not null,
+  pattern text not null,
+  kind text not null check (kind in ('direction', 'exclude')),
+  value text not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, bank, kind, pattern)
+);
+create index if not exists fin_bank_rules_user_bank_idx on public.fin_bank_rules(user_id, bank);
 
 -- ─── Krediler ────────────────────────────────────────────────
 create table if not exists public.fin_loans (
@@ -223,7 +243,7 @@ declare t text;
 begin
   foreach t in array array[
     'fin_accounts', 'fin_categories', 'fin_statements', 'fin_transactions',
-    'fin_merchant_rules', 'fin_loans', 'fin_loan_installments', 'fin_income_sources',
+    'fin_merchant_rules', 'fin_bank_rules', 'fin_loans', 'fin_loan_installments', 'fin_income_sources',
     'fin_holdings', 'fin_budgets', 'fin_goals', 'fin_reports', 'fin_alert_dismissals',
     'fin_chat_messages'
   ] loop

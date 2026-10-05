@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import {
   deleteAccount,
+  deleteBankRule,
   deleteCategory,
   deleteHolding,
   deleteIncome,
@@ -15,6 +16,7 @@ import {
   saveIncome,
   setManualRate,
 } from '@/app/finans/actions'
+import { bankById } from '@/lib/finans/banks'
 import { ACCOUNT_TYPE_LABELS, ASSET_LABELS, INCOME_KIND_LABELS } from '@/lib/finans/defaults'
 import { formatTRY } from '@/lib/finans/format'
 import { holdingValueTRY, toTRY } from '@/lib/finans/calc/networth'
@@ -41,7 +43,7 @@ function useAction() {
 
 function IconButton({ label, onClick, danger, children }: { label: string; onClick: () => void; danger?: boolean; children: React.ReactNode }) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} className={`p-1 text-[#5A5A6E] ${danger ? 'hover:text-[#f08a8a]' : 'hover:text-[#F0F0F5]'}`}>
+    <button type="button" aria-label={label} title={label} onClick={onClick} className={`p-1 text-faint ${danger ? 'hover:text-crit' : 'hover:text-ink'}`}>
       {children}
     </button>
   )
@@ -85,14 +87,14 @@ export function AccountsSettings({ accounts }: { accounts: Account[] }) {
 
   return (
     <div className="space-y-3">
-      <ul className="divide-y divide-white/6">
+      <ul className="divide-y divide-line">
         {accounts.map(a => (
           <li key={a.id} className="py-2.5 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm truncate">
-                {a.name} {a.last4 && <span className="text-[#5A5A6E]">•{a.last4}</span>} {!a.is_active && <Badge>pasif</Badge>}
+                {a.name} {a.last4 && <span className="text-faint">•{a.last4}</span>} {!a.is_active && <Badge>pasif</Badge>}
               </div>
-              <div className="text-xs text-[#8B8B9E]">
+              <div className="text-xs text-muted">
                 {ACCOUNT_TYPE_LABELS[a.type]} {a.bank ? `· ${a.bank}` : ''}
               </div>
             </div>
@@ -113,7 +115,7 @@ export function AccountsSettings({ accounts }: { accounts: Account[] }) {
       </ul>
       {form ? (
         <form
-          className="grid grid-cols-2 md:grid-cols-3 gap-3 rounded-xl border border-white/8 p-3"
+          className="grid grid-cols-2 md:grid-cols-3 gap-3 rounded-xl border border-line p-3"
           onSubmit={e => {
             e.preventDefault()
             run(
@@ -181,11 +183,11 @@ export function AccountsSettings({ accounts }: { accounts: Account[] }) {
             </>
           )}
           <label className="flex items-center gap-2 text-sm self-end pb-2">
-            <input type="checkbox" className="accent-[#00D4FF]" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} />
+            <input type="checkbox" className="accent-[var(--accent)]" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} />
             Aktif
           </label>
           <div className="col-span-2 md:col-span-3 flex justify-end items-center gap-2">
-            {error && <span className="text-xs text-[#f08a8a]">{error}</span>}
+            {error && <span className="text-xs text-crit">{error}</span>}
             <button type="button" className={buttonClass.ghost} onClick={() => setForm(null)}>
               Vazgeç
             </button>
@@ -223,14 +225,14 @@ export function IncomeSettings({ incomes, fx }: { incomes: IncomeSource[]; fx: F
 
   return (
     <div className="space-y-3">
-      <ul className="divide-y divide-white/6">
+      <ul className="divide-y divide-line">
         {incomes.map(i => (
           <li key={i.id} className="py-2.5 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm">
                 {i.name} {!i.is_recurring && <Badge>düzensiz</Badge>} {!i.is_active && <Badge>pasif</Badge>}
               </div>
-              <div className="text-xs text-[#8B8B9E]">
+              <div className="text-xs text-muted">
                 {INCOME_KIND_LABELS[i.kind]} {i.day_of_month ? `· her ayın ${i.day_of_month}’i` : ''}
               </div>
             </div>
@@ -248,10 +250,10 @@ export function IncomeSettings({ incomes, fx }: { incomes: IncomeSource[]; fx: F
           </li>
         ))}
       </ul>
-      {incomes.length > 0 && <p className="text-xs text-[#8B8B9E]">Tahminde kullanılan düzenli aylık gelir: {formatTRY(monthly)}</p>}
+      {incomes.length > 0 && <p className="text-xs text-muted">Tahminde kullanılan düzenli aylık gelir: {formatTRY(monthly)}</p>}
       {form ? (
         <form
-          className="grid grid-cols-2 md:grid-cols-3 gap-3 rounded-xl border border-white/8 p-3"
+          className="grid grid-cols-2 md:grid-cols-3 gap-3 rounded-xl border border-line p-3"
           onSubmit={e => {
             e.preventDefault()
             run(
@@ -297,16 +299,16 @@ export function IncomeSettings({ incomes, fx }: { incomes: IncomeSource[]; fx: F
           </Field>
           <div className="flex flex-col justify-end gap-1 pb-1 text-sm">
             <label className="flex items-center gap-2">
-              <input type="checkbox" className="accent-[#00D4FF]" checked={form.is_recurring} onChange={e => setForm({ ...form, is_recurring: e.target.checked })} />
+              <input type="checkbox" className="accent-[var(--accent)]" checked={form.is_recurring} onChange={e => setForm({ ...form, is_recurring: e.target.checked })} />
               Her ay düzenli (tahmine dahil)
             </label>
             <label className="flex items-center gap-2">
-              <input type="checkbox" className="accent-[#00D4FF]" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} />
+              <input type="checkbox" className="accent-[var(--accent)]" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} />
               Aktif
             </label>
           </div>
           <div className="col-span-2 md:col-span-3 flex justify-end items-center gap-2">
-            {error && <span className="text-xs text-[#f08a8a]">{error}</span>}
+            {error && <span className="text-xs text-crit">{error}</span>}
             <button type="button" className={buttonClass.ghost} onClick={() => setForm(null)}>
               Vazgeç
             </button>
@@ -342,9 +344,9 @@ export function HoldingsSettings({ holdings, fx, fxUpdatedAt }: { holdings: Hold
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl bg-white/[0.03] p-3">
+      <div className="rounded-xl bg-surface-2 p-3">
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-xs text-[#8B8B9E]">
+          <span className="text-xs text-muted">
             Kurlar (TCMB döviz satış, gram altın){fxUpdatedAt ? ` · ${new Date(fxUpdatedAt).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}` : ''}
           </span>
           <IconButton label="Kurları yenile" onClick={() => run(() => refreshRates())}>
@@ -354,7 +356,7 @@ export function HoldingsSettings({ holdings, fx, fxUpdatedAt }: { holdings: Hold
         <div className="flex flex-wrap gap-4 text-sm">
           {(['USD', 'EUR', 'GBP', 'XAU'] as const).map(c => (
             <span key={c}>
-              <span className="text-[#8B8B9E]">{ASSET_LABELS[c]}</span> <span className="tabular-nums">{fx[c] ? fx[c]!.toLocaleString('tr-TR', { maximumFractionDigits: 2 }) : '—'}</span>
+              <span className="text-muted">{ASSET_LABELS[c]}</span> <span className="tabular-nums">{fx[c] ? fx[c]!.toLocaleString('tr-TR', { maximumFractionDigits: 2 }) : '—'}</span>
             </span>
           ))}
         </div>
@@ -379,14 +381,14 @@ export function HoldingsSettings({ holdings, fx, fxUpdatedAt }: { holdings: Hold
         </form>
       </div>
 
-      <ul className="divide-y divide-white/6">
+      <ul className="divide-y divide-line">
         {holdings.map(h => {
           const v = holdingValueTRY(h, fx)
           return (
             <li key={h.id} className="py-2.5 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm truncate">{h.name}</div>
-                <div className="text-xs text-[#8B8B9E]">
+                <div className="text-xs text-muted">
                   {h.quantity.toLocaleString('tr-TR')} {ASSET_LABELS[h.asset]}
                 </div>
               </div>
@@ -406,7 +408,7 @@ export function HoldingsSettings({ holdings, fx, fxUpdatedAt }: { holdings: Hold
 
       {form ? (
         <form
-          className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-xl border border-white/8 p-3"
+          className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-xl border border-line p-3"
           onSubmit={e => {
             e.preventDefault()
             run(
@@ -456,7 +458,7 @@ export function HoldingsSettings({ holdings, fx, fxUpdatedAt }: { holdings: Hold
           <Plus className="w-4 h-4" /> Varlık ekle (döviz, altın, fon, BES)
         </button>
       )}
-      {error && <p className="text-xs text-[#f08a8a]">{error}</p>}
+      {error && <p className="text-xs text-crit">{error}</p>}
     </div>
   )
 }
@@ -478,17 +480,17 @@ export function CategorySettings({
   return (
     <div className="grid md:grid-cols-2 gap-6">
       <div>
-        <ul className="divide-y divide-white/6 max-h-96 overflow-y-auto pr-1">
+        <ul className="divide-y divide-line max-h-96 overflow-y-auto pr-1">
           {categories.map(c => (
             <li key={c.id} className="py-2 flex items-center justify-between gap-3 text-sm">
               <span className="truncate">
-                {c.name} <span className="text-xs text-[#5A5A6E]">{KIND_LABELS[c.kind]}</span>
+                {c.name} <span className="text-xs text-faint">{KIND_LABELS[c.kind]}</span>
               </span>
               <span className="flex items-center gap-2 shrink-0">
-                <label className="flex items-center gap-1 text-xs text-[#8B8B9E]" title="Sabit giderler (kira, fatura, abonelik) ayrıca raporlanır">
+                <label className="flex items-center gap-1 text-xs text-muted" title="Sabit giderler (kira, fatura, abonelik) ayrıca raporlanır">
                   <input
                     type="checkbox"
-                    className="accent-[#00D4FF]"
+                    className="accent-[var(--accent)]"
                     checked={c.is_fixed}
                     disabled={pending}
                     onChange={e => run(() => saveCategory({ id: c.id, name: c.name, kind: c.kind, is_fixed: e.target.checked }))}
@@ -521,18 +523,18 @@ export function CategorySettings({
             Ekle
           </button>
         </form>
-        {error && <p className="text-xs text-[#f08a8a] mt-2">{error}</p>}
+        {error && <p className="text-xs text-crit mt-2">{error}</p>}
       </div>
       <div>
-        <div className="text-xs text-[#8B8B9E] mb-2">Öğrenilen kurallar ({rules.length}) — işyeri → kategori</div>
+        <div className="text-xs text-muted mb-2">Öğrenilen kurallar ({rules.length}) — işyeri → kategori</div>
         {rules.length === 0 ? (
-          <p className="text-sm text-[#5A5A6E]">Ekstre onayında kategori düzelttikçe burada birikir.</p>
+          <p className="text-sm text-faint">Ekstre onayında kategori düzelttikçe burada birikir.</p>
         ) : (
-          <ul className="divide-y divide-white/6 max-h-96 overflow-y-auto pr-1">
+          <ul className="divide-y divide-line max-h-96 overflow-y-auto pr-1">
             {rules.map(r => (
               <li key={r.id} className="py-2 flex items-center justify-between gap-3 text-sm">
                 <span className="truncate">
-                  <span className="text-[#C3C2CF]">{r.pattern}</span> <span className="text-[#5A5A6E]">→</span> {catName.get(r.category_id) ?? '?'}
+                  <span className="text-ink-2">{r.pattern}</span> <span className="text-faint">→</span> {catName.get(r.category_id) ?? '?'}
                 </span>
                 <IconButton label="Kuralı sil" danger onClick={() => run(() => deleteRule(r.id))}>
                   <Trash2 className="w-3.5 h-3.5" />
@@ -543,5 +545,36 @@ export function CategorySettings({
         )}
       </div>
     </div>
+  )
+}
+
+// ─── Öğrenilen banka kuralları ───────────────────────────────
+export function BankRulesSettings({ rules }: { rules: { id: string; bank: string; pattern: string; kind: string; value: string }[] }) {
+  const { error, run } = useAction()
+  if (rules.length === 0) {
+    return (
+      <p className="text-sm text-muted">
+        Ekstre onayında bir satırın yönünü (giriş/çıkış) çevirdiğinde veya işlem olmayan satırları “hep hariç tut” dediğinde, o bankanın sonraki ekstrelerinde aynısı
+        otomatik uygulanır. Öğrenilen kurallar burada listelenir.
+      </p>
+    )
+  }
+  return (
+    <>
+      <ul className="divide-y divide-line">
+        {rules.map(r => (
+          <li key={r.id} className="py-2 flex items-center justify-between gap-3 text-sm">
+            <span className="min-w-0">
+              <Badge>{bankById(r.bank)?.name ?? r.bank}</Badge> <span className="text-ink-2">“{r.pattern}”</span>{' '}
+              <span className="text-muted">→ {r.kind === 'exclude' ? 'işlem değil, hariç tut' : r.value === 'in' ? 'giriş say' : 'çıkış say'}</span>
+            </span>
+            <IconButton label="Kuralı sil" danger onClick={() => run(() => deleteBankRule(r.id))}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </IconButton>
+          </li>
+        ))}
+      </ul>
+      {error && <p className="text-xs text-crit mt-2">{error}</p>}
+    </>
   )
 }

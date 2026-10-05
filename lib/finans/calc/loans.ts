@@ -1,8 +1,9 @@
 import type { Loan, LoanInstallment } from '../types'
+import { CONSUMER_TAX_RATE, earlyRepaymentFeeRate } from '../regulations'
 import { addMonthsToDate } from './dates'
 
-// Tüketici kredilerinde faiz üzerinden KKDF (%15) + BSMV (%15) alınır.
-export const CONSUMER_LOAN_TAX_RATE = 0.3
+// Tüketici kredilerinde faiz üzerinden KKDF + BSMV alınır (oranlar regulations.ts'te).
+export const CONSUMER_LOAN_TAX_RATE = CONSUMER_TAX_RATE
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
@@ -72,7 +73,7 @@ export function loanStatus(loan: Loan, all: LoanInstallment[]): LoanStatus {
   const remainingPrincipal = round2(unpaid.reduce((s, i) => s + i.principal, 0))
   const remainingInterest = round2(unpaid.reduce((s, i) => s + i.interest + i.tax, 0))
   const remainingTotal = round2(unpaid.reduce((s, i) => s + i.total, 0))
-  const fee = remainingPrincipal * (unpaid.length > 36 ? 0.02 : 0.01)
+  const fee = remainingPrincipal * earlyRepaymentFeeRate(unpaid.length)
   const earlyPayoffAmount = round2(remainingPrincipal + fee)
 
   return {

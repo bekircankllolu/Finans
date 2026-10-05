@@ -18,14 +18,18 @@ export function TransactionsTable({
   accounts,
   defaultMonth,
   currentMonth,
+  statement,
 }: {
   transactions: Transaction[]
   categories: Category[]
   accounts: Account[]
   defaultMonth: string
   currentMonth: string
+  // ?ekstre= ile gelindiyse sadece o ekstrenin işlemleri
+  statement?: { id: string; label: string } | null
 }) {
-  const [month, setMonth] = useState(defaultMonth)
+  const [month, setMonth] = useState(statement ? '' : defaultMonth)
+  const [statementId, setStatementId] = useState(statement?.id ?? '')
   const [accountId, setAccountId] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [direction, setDirection] = useState('')
@@ -46,13 +50,14 @@ export function TransactionsTable({
     const needle = q.trim().toLocaleLowerCase('tr-TR')
     return transactions.filter(
       t =>
+        (!statementId || t.statement_id === statementId) &&
         (!month || monthKey(t.date) === month) &&
         (!accountId || t.account_id === accountId) &&
         (!categoryId || (categoryId === 'none' ? !t.category_id : t.category_id === categoryId)) &&
         (!direction || t.direction === direction) &&
         (!needle || `${t.merchant} ${t.description}`.toLocaleLowerCase('tr-TR').includes(needle)),
     )
-  }, [transactions, month, accountId, categoryId, direction, q])
+  }, [transactions, statementId, month, accountId, categoryId, direction, q])
 
   const totals = useMemo(
     () => ({
@@ -95,6 +100,16 @@ export function TransactionsTable({
 
   return (
     <div className="space-y-4">
+      {statementId && statement && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm">
+          <span>
+            Sadece <strong>{statement.label}</strong> ekstresinin işlemleri gösteriliyor
+          </span>
+          <button type="button" className="text-accent text-xs font-medium" onClick={() => setStatementId('')}>
+            Filtreyi kaldır
+          </button>
+        </div>
+      )}
       <Card>
         <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
           <select className={inputClass} value={month} onChange={e => setMonth(e.target.value)} aria-label="Ay">
@@ -130,14 +145,14 @@ export function TransactionsTable({
           <input className={`${inputClass} col-span-2`} placeholder="İşyeri veya açıklama ara…" value={q} onChange={e => setQ(e.target.value)} />
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm mt-4">
-          <span className="text-[#8B8B9E]">{filtered.length} işlem</span>
+          <span className="text-muted">{filtered.length} işlem</span>
           <span>
             Gider: <strong className="tabular-nums">{formatTRY(totals.expense)}</strong>
           </span>
           <span>
             Gelir: <strong className="tabular-nums">{formatTRY(totals.income)}</strong>
           </span>
-          <span className="text-[#5A5A6E] text-xs self-center">Transferler (kart ödemesi vb.) toplamlara dahil değildir.</span>
+          <span className="text-faint text-xs self-center">Transferler (kart ödemesi vb.) toplamlara dahil değildir.</span>
         </div>
       </Card>
 
@@ -152,7 +167,7 @@ export function TransactionsTable({
           <Plus className="w-4 h-4" /> Manuel işlem
         </button>
         {selected.size > 0 && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#16151F] px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line-strong bg-surface px-3 py-2">
             <span className="text-sm">{selected.size} seçili</span>
             <select className={`${inputClass} w-48 py-1.5`} value={bulkCat} onChange={e => setBulkCat(e.target.value)} aria-label="Yeni kategori">
               <option value="">Kategori seç…</option>
@@ -162,8 +177,8 @@ export function TransactionsTable({
                 </option>
               ))}
             </select>
-            <label className="flex items-center gap-1.5 text-xs text-[#8B8B9E]">
-              <input type="checkbox" className="accent-[#00D4FF]" checked={learn} onChange={e => setLearn(e.target.checked)} />
+            <label className="flex items-center gap-1.5 text-xs text-muted">
+              <input type="checkbox" className="accent-[var(--accent)]" checked={learn} onChange={e => setLearn(e.target.checked)} />
               Bu işyerleri için hatırla
             </label>
             <button
@@ -184,7 +199,7 @@ export function TransactionsTable({
             </button>
           </div>
         )}
-        {message && <span className="text-sm text-[#8B8B9E]">{message}</span>}
+        {message && <span className="text-sm text-muted">{message}</span>}
       </div>
 
       {showAdd && <ManualForm accounts={accounts} categories={categories} onDone={msg => { setMessage(msg); setShowAdd(false) }} />}
@@ -193,11 +208,11 @@ export function TransactionsTable({
         <div className="overflow-x-auto -mx-5 px-5">
           <table className="w-full text-sm min-w-[720px]" style={{ opacity: pending ? 0.6 : 1 }}>
             <thead>
-              <tr className="text-left text-xs text-[#8B8B9E] border-b border-white/8">
+              <tr className="text-left text-xs text-muted border-b border-line">
                 <th className="py-2 w-8">
                   <input
                     type="checkbox"
-                    className="accent-[#00D4FF]"
+                    className="accent-[var(--accent)]"
                     aria-label="Tümünü seç"
                     checked={allVisibleSelected}
                     onChange={() => setSelected(allVisibleSelected ? new Set() : new Set(visible.map(t => t.id)))}
@@ -210,15 +225,15 @@ export function TransactionsTable({
                 <th className="py-2 font-medium text-right">Tutar</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/6">
+            <tbody className="divide-y divide-line">
               {visible.map(t => {
                 const cat = t.category_id ? cats.get(t.category_id) : undefined
                 return (
-                  <tr key={t.id} className={selected.has(t.id) ? 'bg-white/[0.03]' : ''}>
+                  <tr key={t.id} className={selected.has(t.id) ? 'bg-surface-2' : ''}>
                     <td className="py-2">
-                      <input type="checkbox" className="accent-[#00D4FF]" checked={selected.has(t.id)} onChange={() => toggle(t.id)} aria-label="Seç" />
+                      <input type="checkbox" className="accent-[var(--accent)]" checked={selected.has(t.id)} onChange={() => toggle(t.id)} aria-label="Seç" />
                     </td>
-                    <td className="py-2 pr-3 whitespace-nowrap text-[#C3C2CF]">{formatDateTR(t.date)}</td>
+                    <td className="py-2 pr-3 whitespace-nowrap text-ink-2">{formatDateTR(t.date)}</td>
                     <td className="py-2 pr-3 max-w-[300px]">
                       <div className="truncate" title={t.description}>
                         {t.merchant}
@@ -234,13 +249,13 @@ export function TransactionsTable({
                     </td>
                     <td className="py-2 pr-3">
                       {cat ? (
-                        <span className={cat.kind === 'transfer' ? 'text-[#5A5A6E]' : 'text-[#C3C2CF]'}>{cat.name}</span>
+                        <span className={cat.kind === 'transfer' ? 'text-faint' : 'text-ink-2'}>{cat.name}</span>
                       ) : (
                         <Badge tone="warning">kategorisiz</Badge>
                       )}
                     </td>
-                    <td className="py-2 pr-3 text-[#8B8B9E] truncate max-w-[140px]">{t.account_id ? accName.get(t.account_id) : '—'}</td>
-                    <td className={`py-2 text-right tabular-nums whitespace-nowrap font-medium ${t.direction === 'in' ? 'text-[#5fd35f]' : ''}`}>
+                    <td className="py-2 pr-3 text-muted truncate max-w-[140px]">{t.account_id ? accName.get(t.account_id) : '—'}</td>
+                    <td className={`py-2 text-right tabular-nums whitespace-nowrap font-medium ${t.direction === 'in' ? 'text-good' : ''}`}>
                       {t.direction === 'in' ? '+' : '−'}
                       {formatTRY(t.amount_try, true)}
                     </td>
@@ -255,7 +270,7 @@ export function TransactionsTable({
             Daha fazla göster ({filtered.length - limit})
           </button>
         )}
-        {filtered.length === 0 && <p className="text-sm text-[#8B8B9E] py-6 text-center">Bu filtrede işlem yok.</p>}
+        {filtered.length === 0 && <p className="text-sm text-muted py-6 text-center">Bu filtrede işlem yok.</p>}
       </Card>
     </div>
   )
@@ -341,7 +356,7 @@ function ManualForm({ accounts, categories, onDone }: { accounts: Account[]; cat
           <button type="submit" disabled={pending} className={buttonClass.primary}>
             Ekle
           </button>
-          {error && <span className="text-xs text-[#f08a8a]">{error}</span>}
+          {error && <span className="text-xs text-crit">{error}</span>}
         </div>
       </form>
     </Card>

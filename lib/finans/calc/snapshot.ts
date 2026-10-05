@@ -1,4 +1,5 @@
 import type { Account, Budget, FinanceData, Goal } from '../types'
+import { cardMinPaymentRate, REGULATIONS } from '../regulations'
 import { baseMonthlySpend, categoryBreakdown, type CategorySlice, type MonthSummary, summarizeMonths } from './cashflow'
 import { addMonths, dateInMonth, lastMonths, monthKey, monthsBetween } from './dates'
 import { compareStrategies, type Debt } from './debtStrategy'
@@ -9,8 +10,8 @@ import { computeNetWorth, type NetWorth } from './networth'
 import { detectRecurring, type RecurringPayment } from './recurring'
 import { buildAlerts, type Alert } from './alerts'
 
-// TCMB'nin TL kartlar için azami akdi faizine yakın varsayılan; hesap ayarından değiştirilebilir.
-export const DEFAULT_CARD_RATE = 4.25
+// Varsayılan kart/KMH faizi ve asgari ödeme oranı regulations.ts'ten gelir; hesap ayarından ezilebilir.
+export const DEFAULT_CARD_RATE = REGULATIONS.defaultCardMonthlyRate
 
 export interface CardSummary {
   account: Account
@@ -75,7 +76,7 @@ export interface Snapshot {
 
 // Kartın asgari ödemesi: ekstrede yazıyorsa o, yoksa limite göre %20 / %40 yaklaşık kuralı
 export function cardMinPct(limit: number | null): number {
-  return limit != null && limit > 50_000 ? 0.4 : 0.2
+  return cardMinPaymentRate(limit)
 }
 
 function nextDueDate(day: number | null, today: string): string | null {

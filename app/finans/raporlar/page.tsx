@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { GenerateReport } from '@/components/finans/GenerateReport'
 import { Markdown } from '@/components/finans/Markdown'
+import { AdvisorTabs } from '@/components/finans/AdvisorTabs'
 import { Card, Empty, PageHeader } from '@/components/finans/ui'
 import { formatMonthLong, formatTRY } from '@/lib/finans/format'
 import { getFinanceContext, getFinanceSnapshot } from '@/lib/finans/load'
@@ -17,13 +18,16 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader
-        title="Aylık AI raporları"
+        title="Danışman"
         subtitle="Ne değişti, nerede kaçak var, ne yapmalısın — hesaplanmış rakamlar üzerinden."
         actions={
+          <>
+          <AdvisorTabs active="reports" />
           <GenerateReport
             month={snapshot.focusMonth}
             label={hasFocusReport ? `${formatMonthLong(snapshot.focusMonth)} raporunu yenile` : `${formatMonthLong(snapshot.focusMonth)} raporu oluştur`}
           />
+          </>
         }
       />
       {!selected ? (
@@ -38,11 +42,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                 <li key={r.id}>
                   <Link
                     href={`/finans/raporlar?ay=${r.month}`}
-                    className={`block rounded-lg px-2.5 py-2 text-sm ${r.month === selected.month ? 'bg-white/8' : 'text-[#8B8B9E] hover:bg-white/4'}`}
+                    className={`block rounded-lg px-2.5 py-2 text-sm ${r.month === selected.month ? 'bg-hover' : 'text-muted hover:bg-hover'}`}
                   >
                     {formatMonthLong(r.month)}
                     {r.metrics?.net != null && (
-                      <span className="block text-[11px] text-[#5A5A6E]">
+                      <span className="block text-[11px] text-faint">
                         Net {formatTRY(Number(r.metrics.net))} · Skor {r.metrics.health}
                       </span>
                     )}
@@ -53,7 +57,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           </Card>
           <Card title={formatMonthLong(selected.month)} className="lg:col-span-3">
             <Markdown text={selected.content} />
-            <p className="text-[11px] text-[#5A5A6E] mt-6">
+            <p className="text-[11px] text-faint mt-6">
               Oluşturulma: {new Date(selected.created_at).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })} · Yatırım tavsiyesi değildir.
             </p>
           </Card>

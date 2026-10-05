@@ -24,7 +24,7 @@ let n = 0
 const tx = (p: Partial<Transaction>): Transaction => ({
   id: `t${n++}`, account_id: 'acc', statement_id: null, date: '2026-09-10', description: 'X', merchant: 'X',
   amount: 100, direction: 'out', currency: 'TRY', amount_try: p.amount ?? 100, category_id: null,
-  installment_no: null, installment_total: null, source: 'statement', notes: null, ...p,
+  installment_no: null, installment_total: null, source: 'statement', notes: null, tx_type: null, ...p,
 })
 
 describe('dates', () => {

@@ -31,16 +31,16 @@ export function CategoryBars({ slices, limit = 8 }: { slices: CategorySlice[]; l
               <span className="truncate">{r.name}</span>
               <span className="flex items-baseline gap-2 shrink-0">
                 {diff != null && Math.abs(diff) >= 0.15 && (
-                  <span className={`text-[11px] ${diff > 0 ? 'text-[#ec835a]' : 'text-[#0ca30c]'}`} title="3 aylık ortalamaya göre">
+                  <span className={`text-[11px] ${diff > 0 ? 'text-serious' : 'text-good'}`} title="3 aylık ortalamaya göre">
                     {diff > 0 ? '▲' : '▼'} %{Math.round(Math.abs(diff) * 100)}
                   </span>
                 )}
                 <span className="font-medium tabular-nums">{formatTRY(r.amount)}</span>
-                <span className="text-xs text-[#5A5A6E] w-9 text-right tabular-nums">%{Math.round(r.share * 100)}</span>
+                <span className="text-xs text-faint w-9 text-right tabular-nums">%{Math.round(r.share * 100)}</span>
               </span>
             </div>
-            <div className="h-1.5 mt-1.5 rounded-full bg-white/5">
-              <div className="h-full rounded-full bg-[#3987e5]" style={{ width: `${(r.amount / max) * 100}%` }} />
+            <div className="h-1.5 mt-1.5 rounded-full bg-surface-2">
+              <div className="h-full rounded-full bg-series-1" style={{ width: `${(r.amount / max) * 100}%` }} />
             </div>
           </li>
         )

@@ -1,79 +1,105 @@
 import Link from 'next/link'
-import { Card, Badge, Empty, PageHeader } from '@/components/finans/ui'
-import { Uploader } from '@/components/finans/Uploader'
+import { CheckCircle2, CircleAlert, CircleHelp } from 'lucide-react'
 import { DeleteStatementButton } from '@/components/finans/StatementRowActions'
+import { Uploader } from '@/components/finans/Uploader'
+import { Badge, BankMark, Card, Empty, PageHeader } from '@/components/finans/ui'
 import { formatDateTR, formatTRY } from '@/lib/finans/format'
 import { getFinanceContext, getFinanceSnapshot } from '@/lib/finans/load'
+import type { Statement } from '@/lib/finans/types'
 
-const STATUS: Record<string, { label: string; tone: 'neutral' | 'good' | 'warning' | 'critical' | 'accent' }> = {
-  uploaded: { label: 'Yüklendi', tone: 'neutral' },
+const STATUS: Record<Statement['status'], { label: string; tone: 'neutral' | 'good' | 'warning' | 'critical' | 'accent' }> = {
+  uploaded: { label: 'Okunmadı', tone: 'neutral' },
   parsing: { label: 'Okunuyor', tone: 'accent' },
   parsed: { label: 'Onay bekliyor', tone: 'warning' },
-  confirmed: { label: 'Onaylandı', tone: 'good' },
+  confirmed: { label: 'Kaydedildi', tone: 'good' },
   failed: { label: 'Hata', tone: 'critical' },
 }
 
-export default async function UploadPage() {
+function ReconcileMark({ st }: { st: Statement }) {
+  if (st.status !== 'confirmed' || !st.reconcile_status) return null
+  if (st.reconcile_status === 'ok')
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-good" title="Okunan satırlar ekstrenin toplamlarıyla tutuyor">
+        <CheckCircle2 className="w-3.5 h-3.5" /> Toplamlar tuttu
+      </span>
+    )
+  if (st.reconcile_status === 'mismatch')
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-warn">
+        <CircleAlert className="w-3.5 h-3.5" /> {formatTRY(Math.abs(st.reconcile_diff ?? 0), true)} fark
+      </span>
+    )
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] text-muted">
+      <CircleHelp className="w-3.5 h-3.5" /> Toplam kontrol edilemedi
+    </span>
+  )
+}
+
+export default async function StatementsPage() {
   const { user } = await getFinanceContext()
   const { data } = await getFinanceSnapshot()
   const accountName = new Map(data.accounts.map(a => [a.id, a.name]))
+  const pending = data.statements.filter(s => s.status !== 'confirmed')
+  const done = data.statements.filter(s => s.status === 'confirmed')
+
+  const row = (st: Statement) => {
+    const status = STATUS[st.status]
+    const amount = st.total_debt ?? st.closing_balance
+    const href = st.status === 'confirmed' ? `/finans/islemler?ekstre=${st.id}` : `/finans/yukle/${st.id}`
+    return (
+      <li key={st.id} className="flex items-center gap-3 py-3">
+        <BankMark name={st.bank ?? (st.account_id ? accountName.get(st.account_id) ?? null : null)} />
+        <Link href={href} className="min-w-0 flex-1 group">
+          <div className="text-sm font-medium truncate group-hover:text-accent">
+            {(st.account_id && accountName.get(st.account_id)) || st.file_name}
+          </div>
+          <div className="text-[11px] text-muted truncate">
+            {st.kind === 'loan_schedule' ? 'Kredi ödeme planı' : st.period_end ? `Dönem sonu ${formatDateTR(st.period_end)}` : st.file_name}
+            {amount != null && ` · ${formatTRY(amount)}`}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-2">
+            <Badge tone={status.tone}>{status.label}</Badge>
+            <ReconcileMark st={st} />
+            {st.error && <span className="text-[11px] text-crit truncate max-w-[220px]" title={st.error}>{st.error}</span>}
+          </div>
+        </Link>
+        <DeleteStatementButton id={st.id} confirmed={st.status === 'confirmed'} />
+      </li>
+    )
+  }
 
   return (
     <>
-      <PageHeader title="Ekstre yükle" subtitle="Her ay kart ve hesap ekstrelerini yükle. Aynı işlem iki kez eklenmez." />
-      <div className="grid lg:grid-cols-5 gap-4">
-        <Card className="lg:col-span-2" title="Yeni yükleme">
+      <PageHeader title="Ekstreler" subtitle="Kart ve hesap ekstrelerini yükle; AI okur, ekstrenin kendi toplamlarıyla doğrular, sen onaylarsın." />
+      <div className="grid lg:grid-cols-12 gap-6 items-start">
+        <div className="lg:col-span-7 min-w-0">
           <Uploader userId={user.id} accounts={data.accounts.filter(a => a.is_active).map(a => ({ id: a.id, name: a.name }))} />
-        </Card>
-        <Card className="lg:col-span-3" title="Yüklenen belgeler">
-          {data.statements.length === 0 ? (
-            <Empty title="Henüz belge yok">İlk ekstreni soldan yükle.</Empty>
-          ) : (
-            <div className="overflow-x-auto -mx-5 px-5">
-              <table className="w-full text-sm min-w-[560px]">
-                <thead>
-                  <tr className="text-left text-xs text-[#8B8B9E] border-b border-white/8">
-                    <th className="py-2 font-medium">Dosya</th>
-                    <th className="py-2 font-medium">Hesap</th>
-                    <th className="py-2 font-medium">Dönem</th>
-                    <th className="py-2 font-medium text-right">Borç/Bakiye</th>
-                    <th className="py-2 font-medium">Durum</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/6">
-                  {data.statements.map(st => {
-                    const status = STATUS[st.status]
-                    const amount = st.total_debt ?? st.closing_balance
-                    return (
-                      <tr key={st.id}>
-                        <td className="py-2.5 pr-3 max-w-[200px]">
-                          <div className="truncate">{st.file_name}</div>
-                          <div className="text-[11px] text-[#5A5A6E]">{st.kind === 'loan_schedule' ? 'Kredi ödeme planı' : 'Ekstre'}</div>
-                        </td>
-                        <td className="py-2.5 pr-3 text-[#C3C2CF]">{st.account_id ? accountName.get(st.account_id) : '—'}</td>
-                        <td className="py-2.5 pr-3 text-[#C3C2CF] whitespace-nowrap">{st.period_end ? formatDateTR(st.period_end) : '—'}</td>
-                        <td className="py-2.5 pr-3 text-right tabular-nums">{amount != null ? formatTRY(amount) : '—'}</td>
-                        <td className="py-2.5 pr-3">
-                          <Badge tone={status.tone}>{status.label}</Badge>
-                          {st.error && <div className="text-[11px] text-[#f08a8a] mt-1 max-w-[220px] truncate" title={st.error}>{st.error}</div>}
-                        </td>
-                        <td className="py-2.5 text-right whitespace-nowrap">
-                          {(st.status === 'parsed' || st.status === 'failed' || st.status === 'uploaded') && (
-                            <Link href={`/finans/yukle/${st.id}`} className="text-xs text-[#00D4FF] mr-2">
-                              {st.status === 'parsed' ? 'Onayla' : 'Tekrar dene'}
-                            </Link>
-                          )}
-                          <DeleteStatementButton id={st.id} confirmed={st.status === 'confirmed'} />
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+          <div className="grid sm:grid-cols-3 gap-3 mt-4 text-xs text-muted">
+            <div className="rounded-xl border border-line p-3">
+              <div className="text-ink font-medium mb-1">Doğrulama</div>
+              Önceki borç + harcamalar − ödemeler = dönem borcu denklemi kontrol edilir.
             </div>
+            <div className="rounded-xl border border-line p-3">
+              <div className="text-ink font-medium mb-1">Tekrar yok</div>
+              Aynı ekstre veya çakışan dönem yeniden yüklenirse kayıtlı işlemler atlanır.
+            </div>
+            <div className="rounded-xl border border-line p-3">
+              <div className="text-ink font-medium mb-1">Öğrenir</div>
+              Düzelttiğin kategori ve yönler banka bazında kural olarak hatırlanır.
+            </div>
+          </div>
+        </div>
+        <div className="lg:col-span-5 space-y-4 min-w-0">
+          {pending.length > 0 && (
+            <Card title="Onay bekleyenler">
+              <ul className="divide-y divide-line -my-3">{pending.map(row)}</ul>
+            </Card>
           )}
-        </Card>
+          <Card title="Kaydedilen ekstreler">
+            {done.length === 0 ? <Empty title="Henüz kaydedilmiş ekstre yok" /> : <ul className="divide-y divide-line -my-3">{done.map(row)}</ul>}
+          </Card>
+        </div>
       </div>
     </>
   )

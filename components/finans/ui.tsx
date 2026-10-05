@@ -5,27 +5,67 @@ import { formatTRY } from '@/lib/finans/format'
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {subtitle && <p className="text-sm text-[#8B8B9E] mt-1">{subtitle}</p>}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6 lg:mb-8">
+      <div className="min-w-0">
+        <h1 className="text-[26px] leading-tight font-semibold tracking-tight">{title}</h1>
+        {subtitle && <p className="text-sm text-muted mt-1.5">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   )
 }
 
-export function Card({ title, action, children, className }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string }) {
+// Sayfa bölümü: başlık + açıklama + sağda bağlantı. Özet ekranı bunlarla düzenlenir.
+export function Section({
+  title,
+  description,
+  action,
+  children,
+  className,
+}: {
+  title: string
+  description?: ReactNode
+  action?: ReactNode
+  children: ReactNode
+  className?: string
+}) {
   return (
-    <section className={cn('bg-[#16151F] border border-white/8 rounded-2xl p-5 min-w-0', className)}>
+    <section className={cn('mb-8 lg:mb-10', className)}>
+      <div className="flex items-end justify-between gap-3 mb-3">
+        <div>
+          <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
+          {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+export function Card({
+  title,
+  action,
+  children,
+  className,
+  padded = true,
+}: {
+  title?: ReactNode
+  action?: ReactNode
+  children: ReactNode
+  className?: string
+  padded?: boolean
+}) {
+  return (
+    <div className={cn('bg-surface border border-line rounded-2xl shadow-card min-w-0', padded && 'p-5', className)}>
       {(title || action) && (
-        <div className="flex items-center justify-between gap-3 mb-4">
-          {title && <h2 className="text-sm font-medium text-[#C3C2CF]">{title}</h2>}
+        <div className={cn('flex items-center justify-between gap-3', padded ? 'mb-4' : 'px-5 pt-5 pb-3')}>
+          {title && <h3 className="text-sm font-medium text-ink-2">{title}</h3>}
           {action}
         </div>
       )}
       {children}
-    </section>
+    </div>
   )
 }
 
@@ -35,60 +75,83 @@ export function Stat({
   hint,
   delta,
   deltaGoodWhenUp = true,
+  deltaLabel = 'geçen döneme göre',
+  tone,
 }: {
   label: string
   value: ReactNode
   hint?: ReactNode
   delta?: number | null
   deltaGoodWhenUp?: boolean
+  deltaLabel?: string
+  tone?: 'good' | 'crit'
 }) {
-  const good = delta != null && (deltaGoodWhenUp ? delta >= 0 : delta <= 0)
+  const showDelta = delta != null && Number.isFinite(delta) && Math.abs(delta) >= 1
+  const good = showDelta && (deltaGoodWhenUp ? delta! >= 0 : delta! <= 0)
   return (
-    <div className="bg-[#16151F] border border-white/8 rounded-2xl p-4 min-w-0">
-      <div className="text-xs text-[#8B8B9E]">{label}</div>
-      <div className="text-xl sm:text-2xl font-semibold mt-1 truncate">{value}</div>
-      {(hint || delta != null) && (
-        <div className="text-xs mt-1 flex items-center gap-1.5 text-[#8B8B9E]">
-          {delta != null && Number.isFinite(delta) && (
-            <span className={good ? 'text-[#0ca30c]' : 'text-[#ec835a]'}>
-              {delta >= 0 ? '▲' : '▼'} {formatTRY(Math.abs(delta))}
-            </span>
-          )}
-          {hint}
-        </div>
-      )}
+    <div className="bg-surface border border-line rounded-2xl shadow-card p-4 min-w-0">
+      <div className="text-xs text-muted">{label}</div>
+      <div className={cn('text-xl sm:text-[22px] font-semibold mt-1.5 truncate tabular-nums tracking-tight', tone === 'good' && 'text-good', tone === 'crit' && 'text-crit')}>
+        {value}
+      </div>
+      <div className="text-[11px] mt-1 text-muted min-h-[16px] leading-snug line-clamp-2">
+        {showDelta && (
+          <span className={good ? 'text-good' : 'text-serious'}>
+            {delta! >= 0 ? '▲' : '▼'} {formatTRY(Math.abs(delta!))}{' '}
+          </span>
+        )}
+        {showDelta ? deltaLabel : hint}
+      </div>
     </div>
   )
 }
 
-export function Progress({ value, tone = 'accent', label }: { value: number; tone?: 'accent' | 'good' | 'warning' | 'critical'; label?: string }) {
-  const colors = { accent: '#3987e5', good: '#0ca30c', warning: '#fab219', critical: '#d03b3b' }
+export function Progress({
+  value,
+  tone = 'accent',
+  label,
+  size = 'md',
+}: {
+  value: number
+  tone?: 'accent' | 'good' | 'warning' | 'critical'
+  label?: string
+  size?: 'sm' | 'md'
+}) {
+  // Durum renkleri temadan bağımsız sabittir (palet kuralı); vurgu çubuğu seri-1 rengini kullanır
+  const colors = { accent: 'var(--series-1)', good: '#0ca30c', warning: '#fab219', critical: '#d03b3b' }
   const pct = Math.max(0, Math.min(1, value)) * 100
   return (
-    <div className="h-2 rounded-full bg-white/6 overflow-hidden" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
+    <div
+      className={cn('rounded-full bg-surface-2 overflow-hidden', size === 'sm' ? 'h-1.5' : 'h-2')}
+      role="progressbar"
+      aria-valuenow={Math.round(pct)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={label}
+    >
       <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: colors[tone] }} />
     </div>
   )
 }
 
-export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'good' | 'warning' | 'critical' | 'accent' }) {
+export function Badge({ children, tone = 'neutral', className }: { children: ReactNode; tone?: 'neutral' | 'good' | 'warning' | 'critical' | 'accent'; className?: string }) {
   const tones = {
-    neutral: 'bg-white/6 text-[#C3C2CF]',
-    good: 'bg-[#0ca30c]/15 text-[#5fd35f]',
-    warning: 'bg-[#fab219]/15 text-[#fab219]',
-    critical: 'bg-[#d03b3b]/15 text-[#f08a8a]',
-    accent: 'bg-[#00D4FF]/10 text-[#00D4FF]',
+    neutral: 'bg-surface-2 text-ink-2',
+    good: 'bg-good-bg text-good',
+    warning: 'bg-warn-bg text-warn',
+    critical: 'bg-crit-bg text-crit',
+    accent: 'bg-accent-soft text-accent',
   }
-  return <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium', tones[tone])}>{children}</span>
+  return <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap', tones[tone], className)}>{children}</span>
 }
 
 export function Empty({ title, children, href, cta }: { title: string; children?: ReactNode; href?: string; cta?: string }) {
   return (
     <div className="text-center py-10 px-4">
       <div className="text-sm font-medium">{title}</div>
-      {children && <div className="text-sm text-[#8B8B9E] mt-1 max-w-md mx-auto">{children}</div>}
+      {children && <div className="text-sm text-muted mt-1 max-w-md mx-auto">{children}</div>}
       {href && cta && (
-        <Link href={href} className="inline-flex mt-4 text-sm px-3 py-2 rounded-lg bg-[#00D4FF] text-[#0D0D14] font-medium hover:opacity-90">
+        <Link href={href} className={cn(buttonClass.primary, 'mt-4')}>
           {cta}
         </Link>
       )}
@@ -96,30 +159,51 @@ export function Empty({ title, children, href, cta }: { title: string; children?
   )
 }
 
-export function Money({ value, className, signed }: { value: number; className?: string; signed?: boolean }) {
+export function Money({ value, className, signed, precise }: { value: number; className?: string; signed?: boolean; precise?: boolean }) {
   return (
     <span className={cn('tabular-nums', className)}>
       {signed && value > 0 ? '+' : ''}
-      {formatTRY(value)}
+      {formatTRY(value, precise)}
     </span>
   )
 }
 
 export const inputClass =
-  'w-full bg-[#0D0D14] border border-white/10 rounded-lg px-3 py-2 text-sm text-[#F0F0F5] placeholder:text-[#5A5A6E] focus:outline-none focus:border-[#00D4FF] transition-colors'
+  'w-full bg-surface border border-line-strong rounded-lg px-3 py-2 text-sm text-ink placeholder:text-faint focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition'
 
 export const buttonClass = {
-  primary: 'inline-flex items-center justify-center gap-2 rounded-lg bg-[#00D4FF] text-[#0D0D14] font-medium text-sm px-3 py-2 hover:opacity-90 disabled:opacity-50 transition',
-  ghost: 'inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 text-[#F0F0F5] text-sm px-3 py-2 hover:bg-white/5 disabled:opacity-50 transition',
-  danger: 'inline-flex items-center justify-center gap-2 rounded-lg border border-[#d03b3b]/40 text-[#f08a8a] text-sm px-3 py-2 hover:bg-[#d03b3b]/10 disabled:opacity-50 transition',
+  primary:
+    'inline-flex items-center justify-center gap-2 rounded-lg bg-accent text-accent-fg font-medium text-sm px-3.5 py-2 hover:opacity-90 disabled:opacity-50 transition',
+  ghost:
+    'inline-flex items-center justify-center gap-2 rounded-lg border border-line-strong bg-surface text-ink text-sm px-3.5 py-2 hover:bg-hover disabled:opacity-50 transition',
+  subtle: 'inline-flex items-center justify-center gap-1.5 rounded-lg text-sm px-2.5 py-1.5 text-muted hover:text-ink hover:bg-hover transition',
+  danger:
+    'inline-flex items-center justify-center gap-2 rounded-lg border border-crit/40 text-crit text-sm px-3.5 py-2 hover:bg-crit-bg disabled:opacity-50 transition',
 }
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
     <label className="block">
-      <span className="text-xs text-[#8B8B9E] font-medium mb-1.5 block">{label}</span>
+      <span className="text-xs text-muted font-medium mb-1.5 block">{label}</span>
       {children}
-      {hint && <span className="text-[11px] text-[#5A5A6E] mt-1 block">{hint}</span>}
+      {hint && <span className="text-[11px] text-faint mt-1 block">{hint}</span>}
     </label>
+  )
+}
+
+// Banka adı için küçük renkli olmayan monogram (marka logosu kullanmadan tanınabilirlik)
+export function BankMark({ name, className }: { name: string | null; className?: string }) {
+  const initials = (name ?? '?')
+    .replace(/BBVA|Bankası|Bank/gi, '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(w => w[0])
+    .join('')
+    .toLocaleUpperCase('tr-TR')
+  return (
+    <span className={cn('inline-flex items-center justify-center w-9 h-9 rounded-xl bg-surface-2 border border-line text-xs font-semibold text-ink-2 shrink-0', className)} aria-hidden>
+      {initials || '?'}
+    </span>
   )
 }

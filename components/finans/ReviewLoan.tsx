@@ -41,7 +41,7 @@ export function ReviewLoan({ statementId, draft }: { statementId: string; draft:
   return (
     <div className="space-y-4">
       {draft.warnings.length > 0 && (
-        <div className="rounded-xl border border-[#fab219]/30 bg-[#fab219]/5 p-3 text-sm">{draft.warnings.join(' · ')}</div>
+        <div className="rounded-xl border border-warn/30 bg-warn-bg p-3 text-sm">{draft.warnings.join(' · ')}</div>
       )}
       <Card title="Kredi bilgileri">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -62,8 +62,8 @@ export function ReviewLoan({ statementId, draft }: { statementId: string; draft:
       <Card title={`${installments.length} taksit`}>
         <div className="overflow-x-auto -mx-5 px-5 max-h-[480px]">
           <table className="w-full text-sm min-w-[620px]">
-            <thead className="sticky top-0 bg-[#16151F]">
-              <tr className="text-left text-xs text-[#8B8B9E] border-b border-white/8">
+            <thead className="sticky top-0 bg-surface">
+              <tr className="text-left text-xs text-muted border-b border-line">
                 <th className="py-2 font-medium">#</th>
                 <th className="py-2 font-medium">Vade</th>
                 <th className="py-2 font-medium text-right">Anapara</th>
@@ -73,7 +73,7 @@ export function ReviewLoan({ statementId, draft }: { statementId: string; draft:
                 <th className="py-2 font-medium text-center">Ödendi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/6">
+            <tbody className="divide-y divide-line">
               {installments.map((i, idx) => (
                 <tr key={i.no}>
                   <td className="py-1.5">{i.no}</td>
@@ -85,7 +85,7 @@ export function ReviewLoan({ statementId, draft }: { statementId: string; draft:
                   <td className="py-1.5 text-center">
                     <input
                       type="checkbox"
-                      className="accent-[#00D4FF]"
+                      className="accent-[var(--accent)]"
                       checked={i.paid}
                       aria-label={`${i.no}. taksit ödendi`}
                       onChange={e => setInstallments(prev => prev.map((x, j) => (j === idx ? { ...x, paid: e.target.checked } : x)))}
@@ -98,7 +98,7 @@ export function ReviewLoan({ statementId, draft }: { statementId: string; draft:
         </div>
       </Card>
       <div className="flex justify-end items-center gap-3">
-        {error && <span className="text-sm text-[#f08a8a]">{error}</span>}
+        {error && <span className="text-sm text-crit">{error}</span>}
         <button type="button" onClick={confirm} disabled={saving} className={buttonClass.primary}>
           {saving && <Loader2 className="w-4 h-4 animate-spin" />}
           Krediyi kaydet

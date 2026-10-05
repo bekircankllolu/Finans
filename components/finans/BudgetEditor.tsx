@@ -30,11 +30,11 @@ export function BudgetEditor({ rows }: { rows: BudgetRow[] }) {
 
   return (
     <div style={{ opacity: pending ? 0.7 : 1 }}>
-      {error && <p className="text-sm text-[#f08a8a] mb-2">{error}</p>}
+      {error && <p className="text-sm text-crit mb-2">{error}</p>}
       <div className="overflow-x-auto -mx-5 px-5">
         <table className="w-full text-sm min-w-[560px]">
           <thead>
-            <tr className="text-left text-xs text-[#8B8B9E] border-b border-white/8">
+            <tr className="text-left text-xs text-muted border-b border-line">
               <th className="py-2 font-medium">Kategori</th>
               <th className="py-2 font-medium text-right">3 ay ort.</th>
               <th className="py-2 font-medium text-right">Bu ay</th>
@@ -42,13 +42,13 @@ export function BudgetEditor({ rows }: { rows: BudgetRow[] }) {
               <th className="py-2 font-medium pl-4 w-32" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/6">
+          <tbody className="divide-y divide-line">
             {rows.map(r => {
               const ratio = r.limit ? r.spent / r.limit : 0
               return (
                 <tr key={r.categoryId}>
                   <td className="py-2 pr-3">{r.name}</td>
-                  <td className="py-2 text-right tabular-nums text-[#8B8B9E]">{r.avg3 ? formatTRY(r.avg3) : '—'}</td>
+                  <td className="py-2 text-right tabular-nums text-muted">{r.avg3 ? formatTRY(r.avg3) : '—'}</td>
                   <td className="py-2 text-right tabular-nums">{formatTRY(r.spent)}</td>
                   <td className="py-2 pl-4">
                     <input
@@ -71,7 +71,7 @@ export function BudgetEditor({ rows }: { rows: BudgetRow[] }) {
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] text-[#5A5A6E] mt-3">Limiti yazıp Enter’a bas; silmek için alanı boşalt. Öneri olarak 3 aylık ortalama gösterilir.</p>
+      <p className="text-[11px] text-faint mt-3">Limiti yazıp Enter’a bas; silmek için alanı boşalt. Öneri olarak 3 aylık ortalama gösterilir.</p>
     </div>
   )
 }

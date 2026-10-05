@@ -322,9 +322,11 @@ export async function deleteStatement(input: { statementId: string; withTransact
   return run(async () => {
     const { supabase } = await getFinanceUser()
     const statementId = id.parse(input.statementId)
-    const st = check<{ file_path: string }>(await supabase.from('fin_statements').select('file_path').eq('id', statementId).single())
+    const st = check<{ file_path: string; extra_paths: string[] | null }>(
+      await supabase.from('fin_statements').select('file_path, extra_paths').eq('id', statementId).single(),
+    )
     if (input.withTransactions) check(await supabase.from('fin_transactions').delete().eq('statement_id', statementId))
-    await supabase.storage.from('fin-statements').remove([st.file_path])
+    await supabase.storage.from('fin-statements').remove([st.file_path, ...(st.extra_paths ?? [])])
     check(await supabase.from('fin_statements').delete().eq('id', statementId))
   })
 }
@@ -333,5 +335,12 @@ export async function clearChat() {
   return run(async () => {
     const { supabase, user } = await getFinanceUser()
     check(await supabase.from('fin_chat_messages').delete().eq('user_id', user.id))
+  })
+}
+
+export async function deleteBankRule(ruleId: string) {
+  return run(async () => {
+    const { supabase } = await getFinanceUser()
+    check(await supabase.from('fin_bank_rules').delete().eq('id', id.parse(ruleId)))
   })
 }

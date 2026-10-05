@@ -94,10 +94,10 @@ export function Chat({ initial }: { initial: Msg[] }) {
       <div className="flex-1 overflow-y-auto space-y-4 pr-1">
         {messages.length === 0 && (
           <div className="text-center pt-10">
-            <p className="text-sm text-[#8B8B9E] mb-4">Verilerine dayanarak soru sor. Örnekler:</p>
+            <p className="text-sm text-muted mb-4">Verilerine dayanarak soru sor. Örnekler:</p>
             <div className="flex flex-wrap justify-center gap-2 max-w-2xl mx-auto">
               {SUGGESTIONS.map(s => (
-                <button key={s} type="button" onClick={() => send(s)} className="text-xs rounded-full border border-white/10 px-3 py-1.5 text-[#C3C2CF] hover:bg-white/5">
+                <button key={s} type="button" onClick={() => send(s)} className="text-xs rounded-full border border-line-strong px-3 py-1.5 text-ink-2 hover:bg-hover">
                   {s}
                 </button>
               ))}
@@ -107,16 +107,16 @@ export function Chat({ initial }: { initial: Msg[] }) {
         {messages.map((m, i) =>
           m.role === 'user' ? (
             <div key={i} className="flex justify-end">
-              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-[#00D4FF]/10 border border-[#00D4FF]/20 px-4 py-2.5 text-sm whitespace-pre-wrap">{m.content}</div>
+              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-accent-soft border border-accent/20 px-4 py-2.5 text-sm whitespace-pre-wrap">{m.content}</div>
             </div>
           ) : (
-            <div key={i} className="max-w-[92%] rounded-2xl rounded-bl-md bg-[#16151F] border border-white/8 px-4 py-3">
-              {m.content ? <Markdown text={m.content} /> : <span className="text-sm text-[#5A5A6E]">…</span>}
+            <div key={i} className="max-w-[92%] rounded-2xl rounded-bl-md bg-surface border border-line px-4 py-3">
+              {m.content ? <Markdown text={m.content} /> : <span className="text-sm text-faint">…</span>}
             </div>
           ),
         )}
         {status && (
-          <div className="flex items-center gap-2 text-xs text-[#8B8B9E]">
+          <div className="flex items-center gap-2 text-xs text-muted">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> {status}
           </div>
         )}
@@ -154,13 +154,13 @@ export function Chat({ initial }: { initial: Msg[] }) {
             }
           }}
           placeholder="Finansal durumun hakkında bir şey sor…"
-          className="flex-1 resize-none bg-[#16151F] border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#00D4FF] max-h-40"
+          className="flex-1 resize-none bg-surface border border-line-strong rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-accent max-h-40"
         />
         <button type="submit" disabled={busy || !input.trim()} aria-label="Gönder" className={`${buttonClass.primary} px-2.5 py-2.5`}>
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4" />}
         </button>
       </form>
-      <p className="text-[11px] text-[#5A5A6E] mt-2 text-center">AI danışman yüklediğin verilerle hesap yapar; yatırım tavsiyesi değildir.</p>
+      <p className="text-[11px] text-faint mt-2 text-center">AI danışman yüklediğin verilerle hesap yapar; yatırım tavsiyesi değildir.</p>
     </div>
   )
 }

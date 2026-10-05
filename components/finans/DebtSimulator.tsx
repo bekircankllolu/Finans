@@ -20,7 +20,7 @@ export function DebtSimulator({ debts, suggestedExtra }: { debts: Debt[]; sugges
   const saved = result.minimum.totalInterest - result[best].totalInterest
   const maxExtra = Math.max(10_000, Math.ceil((suggestedExtra * 3) / 1000) * 1000)
 
-  if (!debts.length) return <p className="text-sm text-[#8B8B9E]">Simüle edilecek borç yok.</p>
+  if (!debts.length) return <p className="text-sm text-muted">Simüle edilecek borç yok.</p>
 
   const cards = [
     { key: 'minimum', title: 'Sadece asgari / taksit', r: result.minimum, desc: 'Hiç ekstra ödeme yapmazsan' },
@@ -41,27 +41,27 @@ export function DebtSimulator({ debts, suggestedExtra }: { debts: Debt[]; sugges
               onChange={e => setExtra(Math.max(0, Number(e.target.value.replace(/\D/g, '')) || 0))}
               aria-label="Ekstra ödeme tutarı"
             />
-            <span className="text-[#8B8B9E]">₺/ay</span>
+            <span className="text-muted">₺/ay</span>
           </div>
         </div>
-        <input id="extra" type="range" min={0} max={maxExtra} step={500} value={Math.min(extra, maxExtra)} onChange={e => setExtra(Number(e.target.value))} className="w-full accent-[#00D4FF]" />
-        {suggestedExtra > 0 && <p className="text-[11px] text-[#5A5A6E] mt-1">Öneri: tahmini aylık fazlanın yarısı ≈ {formatTRY(suggestedExtra)}</p>}
+        <input id="extra" type="range" min={0} max={maxExtra} step={500} value={Math.min(extra, maxExtra)} onChange={e => setExtra(Number(e.target.value))} className="w-full accent-[var(--accent)]" />
+        {suggestedExtra > 0 && <p className="text-[11px] text-faint mt-1">Öneri: tahmini aylık fazlanın yarısı ≈ {formatTRY(suggestedExtra)}</p>}
       </div>
 
       <div className="grid sm:grid-cols-3 gap-3">
         {cards.map(c => (
-          <div key={c.key} className={`rounded-xl border p-3 ${c.key === best ? 'border-[#00D4FF]/40 bg-[#00D4FF]/5' : 'border-white/8'}`}>
+          <div key={c.key} className={`rounded-xl border p-3 ${c.key === best ? 'border-accent/40 bg-accent-soft' : 'border-line'}`}>
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium">{c.title}</span>
               {c.key === best && <Badge tone="accent">önerilen</Badge>}
             </div>
-            <div className="text-xs text-[#8B8B9E] mb-2">{c.desc}</div>
+            <div className="text-xs text-muted mb-2">{c.desc}</div>
             <div className="text-lg font-semibold">{months(c.r.months, c.r.feasible)}</div>
-            <div className="text-xs text-[#8B8B9E]">
-              Toplam faiz <span className="text-[#F0F0F5] tabular-nums">{formatTRY(c.r.totalInterest)}</span>
+            <div className="text-xs text-muted">
+              Toplam faiz <span className="text-ink tabular-nums">{formatTRY(c.r.totalInterest)}</span>
             </div>
             {c.key !== 'minimum' && c.r.payoffOrder.length > 0 && (
-              <ol className="mt-2 text-[11px] text-[#8B8B9E] list-decimal list-inside space-y-0.5">
+              <ol className="mt-2 text-[11px] text-muted list-decimal list-inside space-y-0.5">
                 {c.r.payoffOrder.map(p => (
                   <li key={p.id}>
                     {p.name} · {p.month}. ay
@@ -87,7 +87,7 @@ export function DebtSimulator({ debts, suggestedExtra }: { debts: Debt[]; sugges
           { key: 'snowball', label: 'Kartopu', timeline: [debts.reduce((s, d) => s + d.balance, 0), ...result.snowball.timeline] },
         ]}
       />
-      <p className="text-[11px] text-[#5A5A6E]">
+      <p className="text-[11px] text-faint">
         Kart ve KMH için aylık akdi faiz + %30 KKDF/BSMV varsayılır; asgari ödeme bakiyenin %20’si (limit 50.000 TL üstünde %40). Hesap ayarlarından faiz oranını değiştirebilirsin.
       </p>
     </div>

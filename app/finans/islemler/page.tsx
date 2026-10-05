@@ -1,28 +1,27 @@
 import { TransactionsTable } from '@/components/finans/TransactionsTable'
 import { PageHeader } from '@/components/finans/ui'
+import { formatDateTR } from '@/lib/finans/format'
 import { getFinanceSnapshot } from '@/lib/finans/load'
 
-export default async function TransactionsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+export default async function TransactionsPage({ searchParams }: { searchParams: Promise<{ ay?: string; ekstre?: string }> }) {
   const sp = await searchParams
   const { data, snapshot } = await getFinanceSnapshot()
-  const saved = sp.ok != null
+  const st = sp.ekstre ? data.statements.find(s => s.id === sp.ekstre) : undefined
+  const accountName = st?.account_id ? data.accounts.find(a => a.id === st.account_id)?.name : null
+  const month = sp.ay && /^\d{4}-\d{2}$/.test(sp.ay) ? sp.ay : snapshot.focusMonth
 
   return (
     <>
       <PageHeader title="İşlemler" subtitle="Filtrele, kategori düzelt, nakit harcamaları elle ekle." />
-      {saved && (
-        <div className="mb-4 rounded-xl border border-[#0ca30c]/30 bg-[#0ca30c]/5 px-4 py-3 text-sm">
-          Ekstre kaydedildi: {sp.ok} yeni işlem eklendi
-          {Number(sp.skip) > 0 && `, ${sp.skip} tekrar eden atlandı`}
-          {Number(sp.learned) > 0 && `, ${sp.learned} yeni kategori kuralı öğrenildi`}.
-        </div>
-      )}
       <TransactionsTable
+        // Filtre değişince tablo durumu sıfırlansın
+        key={`${month}-${st?.id ?? ''}`}
         transactions={data.transactions}
         categories={data.categories}
         accounts={data.accounts}
-        defaultMonth={snapshot.focusMonth}
+        defaultMonth={month}
         currentMonth={snapshot.currentMonth}
+        statement={st ? { id: st.id, label: [accountName ?? st.bank ?? st.file_name, st.period_end && formatDateTR(st.period_end)].filter(Boolean).join(' · ') } : null}
       />
     </>
   )

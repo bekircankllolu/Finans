@@ -11,7 +11,7 @@ export function GenerateReport({ month, label }: { month: string; label: string 
   const [error, setError] = useState('')
   return (
     <div className="flex items-center gap-3">
-      {error && <span className="text-sm text-[#f08a8a]">{error}</span>}
+      {error && <span className="text-sm text-crit">{error}</span>}
       <button
         type="button"
         disabled={busy}

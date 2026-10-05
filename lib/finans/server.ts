@@ -68,8 +68,16 @@ async function seedDefaults(supabase: SupabaseClient, userId: string) {
 
 const num = (v: unknown) => (v == null ? null : Number(v))
 
+// Kolon bulunamadı (42703) / tablo yok (42P01): veritabanı migration'ı çalıştırılmamış demektir
+export function schemaError(error: { message: string; code?: string }): Error {
+  if (error.code === '42703' || error.code === '42P01') {
+    return new Error(`Veritabanı güncel değil: Supabase SQL editor'de supabase/finans_v3.sql dosyasını çalıştır. (${error.message})`)
+  }
+  return new Error(error.message)
+}
+
 const TX_COLUMNS =
-  'id, account_id, statement_id, date, description, merchant, amount, direction, currency, amount_try, category_id, installment_no, installment_total, source, notes'
+  'id, account_id, statement_id, date, description, merchant, amount, direction, currency, amount_try, category_id, installment_no, installment_total, source, notes, tx_type'
 const PAGE = 1000
 
 // Supabase (PostgREST) tek sorguda en fazla 1000 satır döner; işlemler sayfa sayfa okunur.
@@ -83,7 +91,7 @@ async function loadTransactions(supabase: SupabaseClient, since: string) {
       .order('date', { ascending: false })
       .order('id')
       .range(from, from + PAGE - 1)
-    if (error) throw new Error(error.message)
+    if (error) throw schemaError(error)
     rows.push(...(data ?? []))
     if (!data || data.length < PAGE) return rows
   }
@@ -98,7 +106,7 @@ export async function loadFinanceData(supabase: SupabaseClient, userId: string, 
       loadTransactions(supabase, since),
       supabase
         .from('fin_statements')
-        .select('id, account_id, kind, file_name, mime_type, status, period_start, period_end, due_date, total_debt, min_payment, closing_balance, error, created_at, confirmed_at')
+        .select('id, account_id, kind, file_name, mime_type, status, period_start, period_end, due_date, total_debt, min_payment, closing_balance, bank, previous_balance, reconcile_status, reconcile_diff, error, created_at, confirmed_at')
         .order('created_at', { ascending: false }),
       supabase.from('fin_loans').select('*').order('created_at'),
       supabase.from('fin_loan_installments').select('*').order('no'),
@@ -111,7 +119,7 @@ export async function loadFinanceData(supabase: SupabaseClient, userId: string, 
     ])
 
   for (const r of [accounts, categories, statements, loans, installments, incomes, holdings, budgets, goals]) {
-    if (r.error) throw new Error(r.error.message)
+    if (r.error) throw schemaError(r.error)
   }
 
   // İlk girişte kategoriler boşsa varsayılanları ekle (ayrı bir kontrol sorgusu atmadan)
@@ -136,6 +144,8 @@ export async function loadFinanceData(supabase: SupabaseClient, userId: string, 
       total_debt: num(s.total_debt),
       min_payment: num(s.min_payment),
       closing_balance: num(s.closing_balance),
+      previous_balance: num(s.previous_balance),
+      reconcile_diff: num(s.reconcile_diff),
     })),
     loans: (loans.data ?? []).map(l => ({ ...l, principal: Number(l.principal), monthly_rate: Number(l.monthly_rate) })),
     installments: (installments.data ?? []).map(i => ({

@@ -1,4 +1,7 @@
 // DB satır tipleri (supabase/finans_schema.sql ile birebir)
+import type { Reconciliation } from './reconcile'
+import type { TxType } from './txTypes'
+
 
 export type AccountType = 'credit_card' | 'checking' | 'kmh' | 'savings' | 'investment' | 'cash'
 export type CategoryKind = 'expense' | 'income' | 'transfer'
@@ -47,6 +50,7 @@ export interface Transaction {
   installment_total: number | null
   source: 'statement' | 'manual'
   notes: string | null
+  tx_type: TxType | null
 }
 
 export interface Statement {
@@ -62,6 +66,10 @@ export interface Statement {
   total_debt: number | null
   min_payment: number | null
   closing_balance: number | null
+  bank: string | null
+  previous_balance: number | null
+  reconcile_status: 'ok' | 'mismatch' | 'unknown' | null
+  reconcile_diff: number | null
   error: string | null
   created_at: string
   confirmed_at: string | null
@@ -143,6 +151,9 @@ export interface FinanceData {
 }
 
 // AI parser'ın ürettiği, onay ekranında düzenlenen taslak işlem
+export type Confidence = 'high' | 'medium' | 'low'
+export type CategorySource = 'rule' | 'type' | 'dictionary' | 'ai' | 'user' | null
+
 export interface DraftTransaction {
   tempId: string
   date: string
@@ -150,11 +161,20 @@ export interface DraftTransaction {
   merchant: string
   amount: number
   direction: Direction
+  ai_direction: Direction
+  type: TxType
   currency: string
+  original_amount: number | null
+  original_currency: string | null
   category_id: string | null
   ai_category_id: string | null
+  category_source: CategorySource
   installment_no: number | null
   installment_total: number | null
+  confidence: Confidence
+  page: number | null
+  // low_confidence, date_outside_period, bank_rule_excluded, bank_rule_direction, verify_added, verify_changed, suspect
+  flags: string[]
   duplicate: boolean
   include: boolean
 }
@@ -162,6 +182,8 @@ export interface DraftTransaction {
 export interface DraftStatement {
   meta: {
     bank: string | null
+    bank_id: string | null
+    card_brand: string | null
     account_type: AccountType
     account_name: string | null
     last4: string | null
@@ -169,13 +191,21 @@ export interface DraftStatement {
     period_start: string | null
     period_end: string | null
     due_date: string | null
+    previous_balance: number | null
     total_debt: number | null
     min_payment: number | null
+    opening_balance: number | null
     closing_balance: number | null
+    payments_total: number | null
+    purchases_total: number | null
     credit_limit: number | null
   }
   transactions: DraftTransaction[]
+  reconciliation: Reconciliation
+  suspects: { tempId: string; reason: string }[]
+  verification: { ran: boolean; changes: number; notes: string | null; diffBefore: number | null }
   warnings: string[]
+  suggestions: string[]
 }
 
 export interface DraftLoanSchedule {

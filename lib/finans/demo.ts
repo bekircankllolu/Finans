@@ -4,6 +4,8 @@ import { DEFAULT_CATEGORIES } from './defaults'
 import { addMonths, dateInMonth, monthKey, todayISO } from './calc/dates'
 import { buildSchedule } from './calc/loans'
 import type { Category, FinanceData, Transaction } from './types'
+import type { ParsedStatement } from './ai/schemas'
+import { buildDraft } from './statementPipeline'
 
 // Sadece geliştirmede: FINANS_DEMO=1 ile Supabase olmadan arayüzü örnek veriyle açar.
 export function isDemoMode(): boolean {
@@ -12,14 +14,22 @@ export function isDemoMode(): boolean {
 
 export const DEMO_USER: FinanceUser = { id: '00000000-0000-4000-8000-000000000000', email: 'demo@example.com' }
 
-// Her sorguya boş sonuç dönen zincirlenebilir sahte istemci
+// Tablo bazında örnek satır dönen zincirlenebilir sahte istemci (sadece okuma; yazmalar etkisiz)
 export function demoSupabase(): SupabaseClient {
-  const result = { data: [], error: null, count: 0 }
-  const chain: unknown = new Proxy(function () {}, {
-    get: (_t, prop) => (prop === 'then' ? (resolve: (v: unknown) => void) => resolve(result) : chain),
-    apply: () => chain,
-  })
-  return chain as SupabaseClient
+  const make = (table: string | null, single: boolean): unknown =>
+    new Proxy(function () {}, {
+      get: (_t, prop) => {
+        if (prop === 'then') {
+          const rows = table === 'fin_statements' ? [demoReviewStatement()] : []
+          return (resolve: (v: unknown) => void) => resolve({ data: single ? (rows[0] ?? null) : rows, error: null, count: rows.length })
+        }
+        if (prop === 'from') return (t: string) => make(t, false)
+        if (prop === 'single' || prop === 'maybeSingle') return () => make(table, true)
+        return make(table, single)
+      },
+      apply: () => make(table, single),
+    })
+  return make(null, false) as SupabaseClient
 }
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -59,6 +69,7 @@ export function demoData(): FinanceData {
       installment_total: null,
       source: 'statement',
       notes: null,
+      tx_type: null,
       ...p,
     })
   }
@@ -112,8 +123,8 @@ export function demoData(): FinanceData {
     categories,
     transactions: txns.sort((a, b) => b.date.localeCompare(a.date)),
     statements: [
-      { id: uuid(70), account_id: card1, kind: 'bank_statement', file_name: 'garanti-bonus-ekstre.pdf', mime_type: 'application/pdf', status: 'confirmed', period_start: null, period_end: dateInMonth(addMonths(current, -1), 20), due_date: dueSoon, total_debt: 41_300, min_payment: 8_260, closing_balance: null, error: null, created_at: today, confirmed_at: today },
-      { id: uuid(71), account_id: card2, kind: 'bank_statement', file_name: 'ykb-world.xlsx', mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', status: 'parsed', period_start: null, period_end: null, due_date: null, total_debt: null, min_payment: null, closing_balance: null, error: null, created_at: today, confirmed_at: null },
+      { id: uuid(70), account_id: card1, kind: 'bank_statement', file_name: 'garanti-bonus-ekstre.pdf', mime_type: 'application/pdf', status: 'confirmed', period_start: null, period_end: dateInMonth(addMonths(current, -1), 20), due_date: dueSoon, total_debt: 41_300, min_payment: 8_260, closing_balance: null, bank: 'Garanti BBVA', previous_balance: 30_000, reconcile_status: 'ok', reconcile_diff: 0, error: null, created_at: today, confirmed_at: today },
+      { id: uuid(71), account_id: card2, kind: 'bank_statement', file_name: 'ykb-world.xlsx', mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', status: 'parsed', period_start: null, period_end: null, due_date: null, total_debt: null, min_payment: null, closing_balance: null, bank: 'Yapı Kredi', previous_balance: null, reconcile_status: null, reconcile_diff: null, error: null, created_at: today, confirmed_at: null },
     ],
     loans: [{ id: loanId, name: 'İhtiyaç Kredisi', bank: 'Akbank', principal: 100_000, monthly_rate: 3.29, term_months: 12, first_due_date: firstDue, include_taxes: true }],
     installments,
@@ -132,5 +143,66 @@ export function demoData(): FinanceData {
     goals: [{ id: uuid(97), name: 'Acil durum fonu', target_amount: 250_000, current_amount: 60_000, target_date: dateInMonth(addMonths(current, 12), 1) }],
     fx: { USD: 41.5, EUR: 48.6, GBP: 55.9, XAU: 4_350 },
     dismissed: [],
+  }
+}
+
+// Onay ekranı önizlemesi için: toplamı tutmayan (bir satırı eksik okunmuş) örnek kart ekstresi
+export function demoReviewStatement() {
+  const current = monthKey(todayISO())
+  const prevM = addMonths(current, -1)
+  const d = (m: string, day: number) => dateInMonth(m, day)
+  const t = (p: Partial<ParsedStatement['transactions'][number]> & Pick<ParsedStatement['transactions'][number], 'date' | 'description' | 'amount' | 'direction' | 'type' | 'category'>) => ({
+    merchant: p.description,
+    currency: 'TRY',
+    original_amount: null,
+    original_currency: null,
+    installment_no: null,
+    installment_total: null,
+    confidence: 'high' as const,
+    page: 1,
+    ...p,
+  })
+  const raw: ParsedStatement = {
+    document_kind: 'credit_card_statement',
+    bank: null,
+    card_brand: 'World Card',
+    account_type: 'credit_card',
+    account_name: 'Yapı Kredi World',
+    last4: '1907',
+    currency: 'TRY',
+    period_start: d(prevM, 6),
+    period_end: d(current, 5),
+    due_date: d(current, 15),
+    previous_balance: 20_000,
+    total_debt: 24_150,
+    min_payment: 4_830,
+    credit_limit: 45_000,
+    opening_balance: null,
+    closing_balance: null,
+    payments_total: null,
+    purchases_total: null,
+    warnings: [],
+    transactions: [
+      t({ date: d(prevM, 10), description: 'ODEME-TESEKKUR EDERIZ', amount: 20_000, direction: 'in', type: 'payment', category: 'Transfer / Kart Ödemesi' }),
+      t({ date: d(prevM, 12), description: 'A101 ALANYA', merchant: 'A101', amount: 3_000, direction: 'out', type: 'purchase', category: 'Market' }),
+      t({ date: d(prevM, 20), description: 'IKEA 2/6', merchant: 'IKEA', amount: 3_200, direction: 'out', type: 'installment', installment_no: 2, installment_total: 6, category: 'Ev & Yaşam' }),
+      t({ date: d(prevM, 21), description: 'WORLDPUAN KAZANIM', merchant: 'WORLDPUAN', amount: 300, direction: 'in', type: 'other_in', category: 'Diğer Gelir', confidence: 'low', page: 2 }),
+      t({ date: d(prevM, 25), description: 'NETFLIX.COM AMSTERDAM', merchant: 'NETFLIX', amount: 229.99, direction: 'out', type: 'fx_purchase', original_amount: 5.49, original_currency: 'USD', category: 'Eğlence & Hobi' }),
+      t({ date: d(current, 1), description: 'PEGASUS HAVA YOLLARI', merchant: 'PEGASUS', amount: 16_570.01, direction: 'out', type: 'purchase', category: 'Seyahat', page: 2 }),
+    ],
+  }
+  const data = demoData()
+  const draft = buildDraft(raw, { categories: data.categories, userRules: [], bankRules: [], hasLoans: true })
+  return {
+    id: uuid(71),
+    account_id: uuid(2),
+    kind: 'bank_statement',
+    file_name: 'ykb-world-ekstre.pdf',
+    file_path: 'demo/ykb.pdf',
+    extra_paths: [],
+    mime_type: 'application/pdf',
+    status: 'parsed',
+    parsed: { raw, draft },
+    error: null,
   }
 }

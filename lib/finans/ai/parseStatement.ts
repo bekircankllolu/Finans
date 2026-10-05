@@ -2,77 +2,71 @@ import 'server-only'
 import type Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import ExcelJS from 'exceljs'
-import { z } from 'zod'
-import { anthropic, assertNotRefused, PARSE_MODEL } from './client'
+import { bankKnowledgeForPrompt } from '../banks'
+import { TX_TYPE_LABELS, TX_TYPES } from '../txTypes'
+import { anthropic, assertNotRefused, EXTRACT_MODEL, PARSE_MODEL } from './client'
+import {
+  loanSchema,
+  statementSchema,
+  verifySchema,
+  type ParsedLoanSchedule,
+  type ParsedStatement,
+  type VerifyResult,
+} from './schemas'
+
+export type { ParsedLoanSchedule, ParsedStatement, VerifyResult }
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const
 type ImageType = (typeof IMAGE_TYPES)[number]
 
-const isoDate = z.string().describe('YYYY-MM-DD')
+const TYPE_GUIDE = TX_TYPES.map(t => `${t} (${TX_TYPE_LABELS[t]})`).join(', ')
 
-const statementSchema = (categoryNames: string[]) =>
-  z.object({
-    bank: z.string().nullable().describe('Banka adı, ör. Garanti BBVA, Yapı Kredi, Akbank'),
-    account_type: z.enum(['credit_card', 'checking', 'kmh', 'savings', 'investment', 'cash']),
-    account_name: z.string().nullable().describe('Kart/hesap adı, ör. Bonus Platinum, Maaş Hesabı'),
-    last4: z.string().nullable().describe('Kart veya hesap numarasının SADECE son 4 hanesi'),
-    currency: z.string().describe('ISO kod, ör. TRY'),
-    period_start: isoDate.nullable(),
-    period_end: isoDate.nullable().describe('Hesap kesim tarihi'),
-    due_date: isoDate.nullable().describe('Son ödeme tarihi (kredi kartı)'),
-    total_debt: z.number().nullable().describe('Dönem borcu (kredi kartı)'),
-    min_payment: z.number().nullable().describe('Asgari ödeme tutarı'),
-    closing_balance: z.number().nullable().describe('Dönem sonu bakiye (vadesiz hesap)'),
-    credit_limit: z.number().nullable(),
-    transactions: z.array(
-      z.object({
-        date: isoDate,
-        description: z.string().describe('Ekstredeki açıklama, kart/IBAN numarası olmadan'),
-        merchant: z.string().describe('Sade işyeri/karşı taraf adı, ör. MIGROS, NETFLIX, AHMET YILMAZ'),
-        amount: z.number().describe('Her zaman pozitif tutar'),
-        direction: z.enum(['in', 'out']).describe('out: harcama/çıkış/borç, in: ödeme/iade/gelen para'),
-        currency: z.string(),
-        installment_no: z.number().int().nullable().describe('Taksitli işlemde kaçıncı taksit, ör. 3/6 ise 3'),
-        installment_total: z.number().int().nullable().describe('Toplam taksit sayısı, ör. 3/6 ise 6'),
-        category: z.enum(categoryNames as [string, ...string[]]),
-      }),
-    ),
-    warnings: z.array(z.string()).describe('Okunamayan sayfa, toplam uyuşmazlığı gibi uyarılar (Türkçe)'),
-  })
+// Türk banka ekstrelerinin bilinen tuzaklarına göre yazılmış çıkarım kılavuzu
+const STATEMENT_SYSTEM = `Sen Türk bankalarının kredi kartı ekstrelerini ve vadesiz/KMH hesap dökümlerini satır satır, eksiksiz ve birebir okuyan bir veri çıkarma uzmanısın. Hata maliyeti yüksek: kullanıcının borç ve harcama hesapları bu verilere dayanıyor.
 
-const loanSchema = z.object({
-  bank: z.string().nullable(),
-  name: z.string().nullable().describe('Kredi türü, ör. İhtiyaç Kredisi, Taşıt Kredisi'),
-  principal: z.number().nullable().describe('Kullandırılan kredi tutarı'),
-  monthly_rate: z.number().nullable().describe('Aylık akdi faiz oranı yüzde olarak, ör. 3.29'),
-  term_months: z.number().int().nullable(),
-  installments: z.array(
-    z.object({
-      no: z.number().int(),
-      due_date: isoDate,
-      principal: z.number(),
-      interest: z.number(),
-      tax: z.number().describe('KKDF + BSMV toplamı, yoksa 0'),
-      total: z.number(),
-      remaining_principal: z.number(),
-    }),
-  ),
-  warnings: z.array(z.string()),
-})
+GENEL
+- Belgedeki HER gerçek para hareketini çıkar; hiçbir satırı atlama, birleştirme veya uydurma. Birden fazla sayfa/görsel varsa hepsini sırayla oku ve aynı satırı iki kez yazma (sayfa geçişlerinde tekrar eden başlık/satırlara dikkat).
+- Tutar her zaman pozitif; yön direction alanında. Türkçe sayı biçimini doğru çevir: "1.234,56" = 1234.56, "1.234" = 1234 (binlik ayraç), "12,5" = 12.5.
+- Tarihleri YYYY-MM-DD yaz. Belgede yıl yoksa ekstre döneminden çıkar; dönem Aralık→Ocak'a yayılıyorsa Aralık işlemleri önceki yıldır.
+- Emin olmadığın satırları yine de yaz ama confidence "low" ver ve warnings'e nedenini ekle.
 
-export type ParsedStatement = z.infer<ReturnType<typeof statementSchema>>
-export type ParsedLoanSchedule = z.infer<typeof loanSchema>
+İŞLEM OLMAYAN SATIRLAR (listeye ALMA)
+- Önceki dönem borcu/devreden bakiye, dönem borcu, asgari ödeme, toplam satırları, ara toplamlar, "kalan taksit tutarı" bilgisi.
+- Puan/ödül hareketleri: Bonus, Worldpuan, MaxiPuan, Chip-para, ParafPara, Bankkart Lira kazanım satırları (puanla yapılan ÖDEME ise gerçek bir giriş olabilir, onu in olarak al).
+- Gelecek dönem taksit planı tabloları, kampanya bilgilendirmeleri, faiz oranı tabloları.
 
-const STATEMENT_SYSTEM = `Sen Türk bankalarının hesap ve kredi kartı ekstrelerini okuyan bir veri çıkarma asistanısın.
-Kurallar:
-- Ekstredeki HER işlem satırını eksiksiz çıkar. Özet/toplam satırlarını, "önceki dönem borcu" gibi devir satırlarını işlem olarak ekleme.
-- Tutarlar daima pozitif sayı; yön direction alanında. Türkçe sayı biçimini (1.234,56) doğru çevir.
-- Kredi kartında: harcama, nakit avans, faiz, ücret → out. Karta yapılan ödeme, iade, puan/cashback → in.
-- Vadesiz hesapta: para çıkışı → out, para girişi → in.
-- "3/6", "3. taksit / 6" gibi taksit bilgisini installment_no / installment_total alanlarına yaz. Taksitli satırın tutarı o ayki taksit tutarıdır.
-- Karta yapılan ödemeleri ve kendi hesapları arası virmanları "Transfer / Kart Ödemesi" kategorisine koy. Kredi kullandırım tutarını "Kredi Kullanımı" kategorisine, kredi taksit ödemelerini "Kredi Ödemesi" kategorisine koy.
-- Kart numarası, IBAN, TC kimlik numarası gibi bilgileri hiçbir alana tam yazma; sadece last4.
-- Emin olmadığın veya okuyamadığın kısımları warnings'e yaz. Tahmin uydurma.`
+KREDİ KARTI EKSTRESİ
+- Harcama, taksit, nakit avans, faiz, ücret, vergi → out. Karta yapılan ödeme, iade, puanla ödeme → in.
+- Taksitli işlemde satırdaki BU AYIN taksit tutarını al (toplam alışveriş tutarını değil). "3/6", "3. Taksit/6", "6 taksitin 3.sü" → installment_no=3, installment_total=6, type=installment.
+- Yurt dışı/döviz işlemde amount = ekstreye yansıyan TL tutarı; orijinal döviz tutarı original_amount/original_currency'ye. type=fx_purchase.
+- Özet kutusundan previous_balance (önceki dönem borcu; kart alacaklıysa eksi), total_debt (dönem borcu), min_payment, due_date, credit_limit, varsa payments_total ve purchases_total al.
+- Kontrol: previous_balance + çıkışlar − girişler ≈ total_debt olmalı. Tutmuyorsa satırları yeniden gözden geçir.
+
+VADESİZ / KMH HESAP DÖKÜMÜ
+- "Borç" kolonu çıkış (out), "Alacak" kolonu giriş (in); işaretli tek kolonda eksi out, artı in. "Bakiye" kolonu tutar DEĞİLDİR.
+- opening_balance (dönem başı/devreden) ve closing_balance (son bakiye) değerlerini al; bakiye eksiyse KMH kullanılıyordur (eksi işaretiyle yaz). Kontrol: opening + girişler − çıkışlar ≈ closing.
+- Hesap eksiye düşüyor veya "KMH/Kredili Mevduat" yazıyorsa account_type=kmh.
+- Kart borcu ödemesi ve kendi hesapları arası virman → own_transfer. Başkasına giden/gelen havale/EFT/FAST → eft_out/eft_in. Maaş → salary. "KREDİ TAKSİT TAHSİLATI" → loan_payment. Kredi kullandırımı → loan_disbursement. KMH faizi, BSMV, KKDF, hesap işletim ücreti → interest/tax/fee. ATM çekimi → cash_withdrawal.
+
+İŞLEM TİPLERİ: ${TYPE_GUIDE}
+
+KATEGORİ
+- Her satıra verilen listeden en uygun kategoriyi ver. Kart ödemesi/virman → "Transfer / Kart Ödemesi"; kredi taksiti → "Kredi Ödemesi"; kredi kullandırımı → "Kredi Kullanımı"; faiz/ücret → "Faiz & Banka Ücretleri".
+
+GİZLİLİK
+- Kart numarası, IBAN, TC kimlik numarası, müşteri numarası hiçbir alana tam yazılmaz; sadece last4.
+
+BANKA BİLGİSİ (banka/kart markası eşlemesi ve format ipuçları)
+${bankKnowledgeForPrompt()}`
+
+const VERIFY_SYSTEM = `${STATEMENT_SYSTEM}
+
+ŞİMDİKİ GÖREV: Daha önce bu belgeden çıkarılmış işlem listesi ekstrenin kendi toplamlarıyla tutmadı. Belgeyi satır satır yeniden kontrol et ve SADECE gerçekten hatalı olanları düzelt:
+- Listede olmayan gerçek işlemleri add'e ekle.
+- Gerçek işlem olmayan (özet, puan, toplam) veya iki kez yazılmış satırları remove'a index ile ekle.
+- Tutarı, tarihi, yönü veya tipi yanlış okunmuş satırları update'e yaz (değişmeyen alanlar null).
+- Özet alanlarını (önceki borç, dönem borcu, açılış/kapanış bakiye) yanlış okuduysan meta'da düzelt, doğruysa null bırak.
+Belgede karşılığı olmayan hiçbir şey ekleme. Fark belgedeki gerçek bir durumdan kaynaklanıyorsa (ör. ekstrede gösterilmeyen faiz) değişiklik yapma, notes'ta açıkla.`
 
 const LOAN_SYSTEM = `Sen Türk bankalarının kredi ödeme planlarını okuyan bir veri çıkarma asistanısın.
 Ödeme planındaki her taksiti eksiksiz çıkar. Türkçe sayı biçimini (1.234,56) doğru çevir. KKDF ve BSMV'yi tax alanında topla.
@@ -123,20 +117,37 @@ export async function fileToContent(buffer: Buffer, mimeType: string, fileName: 
   throw new Error(`Desteklenmeyen dosya türü: ${mimeType || fileName}`)
 }
 
-export async function parseBankStatement(content: Anthropic.ContentBlockParam, categoryNames: string[]): Promise<ParsedStatement> {
+
+export async function filesToContent(files: { buffer: Buffer; mimeType: string; fileName: string }[]): Promise<Anthropic.ContentBlockParam[]> {
+  const blocks: Anthropic.ContentBlockParam[] = []
+  for (const [i, f] of files.entries()) {
+    if (files.length > 1) blocks.push({ type: 'text', text: `--- Sayfa/görsel ${i + 1}: ${f.fileName} ---` })
+    blocks.push(await fileToContent(f.buffer, f.mimeType, f.fileName))
+  }
+  return blocks
+}
+
+export interface ExtractContext {
+  categoryNames: string[]
+  // Hesap önceden biliniyorsa bankasına ait öğrenilmiş kurallar
+  bankRuleHints?: string
+}
+
+export async function extractStatement(content: Anthropic.ContentBlockParam[], ctx: ExtractContext): Promise<ParsedStatement> {
+  const hints = ctx.bankRuleHints ? `\n\nBu hesabın bankası için kullanıcının daha önce öğrettiği kurallar:\n${ctx.bankRuleHints}` : ''
   const stream = anthropic.messages.stream({
-    model: PARSE_MODEL,
+    model: EXTRACT_MODEL,
     max_tokens: 64000,
-    output_config: { effort: 'low', format: zodOutputFormat(statementSchema(categoryNames)) },
+    output_config: { effort: 'high', format: zodOutputFormat(statementSchema(ctx.categoryNames)) },
     system: STATEMENT_SYSTEM,
     messages: [
       {
         role: 'user',
         content: [
-          content,
+          ...content,
           {
             type: 'text',
-            text: `Bu ekstreyi çıkar. Her işlemi şu kategorilerden birine ata: ${categoryNames.join(', ')}.`,
+            text: `Bu belgeyi çıkar. Kategoriler: ${ctx.categoryNames.join(', ')}.${hints}`,
           },
         ],
       },
@@ -148,13 +159,54 @@ export async function parseBankStatement(content: Anthropic.ContentBlockParam, c
   return message.parsed_output
 }
 
-export async function parseLoanSchedule(content: Anthropic.ContentBlockParam): Promise<ParsedLoanSchedule> {
+export async function verifyStatement(
+  content: Anthropic.ContentBlockParam[],
+  parsed: ParsedStatement,
+  discrepancy: string,
+  categoryNames: string[],
+): Promise<VerifyResult> {
+  const table = parsed.transactions
+    .map((t, i) => [i, t.date, t.description, t.amount.toFixed(2), t.direction, t.type, t.installment_no ? `${t.installment_no}/${t.installment_total}` : ''].join('\t'))
+    .join('\n')
+  const meta = JSON.stringify({
+    previous_balance: parsed.previous_balance,
+    total_debt: parsed.total_debt,
+    opening_balance: parsed.opening_balance,
+    closing_balance: parsed.closing_balance,
+    payments_total: parsed.payments_total,
+    purchases_total: parsed.purchases_total,
+  })
+  const stream = anthropic.messages.stream({
+    model: EXTRACT_MODEL,
+    max_tokens: 32000,
+    output_config: { effort: 'high', format: zodOutputFormat(verifySchema(categoryNames)) },
+    system: VERIFY_SYSTEM,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          ...content,
+          {
+            type: 'text',
+            text: `Önceki okumanın özet alanları: ${meta}\n\nUyuşmazlık: ${discrepancy}\n\nÇıkarılan işlemler (index, tarih, açıklama, tutar, yön, tip, taksit):\n${table}\n\nKategoriler: ${categoryNames.join(', ')}`,
+          },
+        ],
+      },
+    ],
+  })
+  const message = await stream.finalMessage()
+  assertNotRefused(message)
+  if (!message.parsed_output) throw new Error('Kontrol turu tamamlanamadı.')
+  return message.parsed_output
+}
+
+export async function parseLoanSchedule(content: Anthropic.ContentBlockParam[]): Promise<ParsedLoanSchedule> {
   const stream = anthropic.messages.stream({
     model: PARSE_MODEL,
     max_tokens: 32000,
-    output_config: { effort: 'low', format: zodOutputFormat(loanSchema) },
+    output_config: { effort: 'medium', format: zodOutputFormat(loanSchema) },
     system: LOAN_SYSTEM,
-    messages: [{ role: 'user', content: [content, { type: 'text', text: 'Bu kredi ödeme planını çıkar.' }] }],
+    messages: [{ role: 'user', content: [...content, { type: 'text', text: 'Bu kredi ödeme planını çıkar.' }] }],
   })
   const message = await stream.finalMessage()
   assertNotRefused(message)

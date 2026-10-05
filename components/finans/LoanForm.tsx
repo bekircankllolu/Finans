@@ -31,8 +31,8 @@ export function LoanForm() {
   }
 
   return (
-    <Card title="Yeni kredi" action={<button type="button" className="text-xs text-[#8B8B9E]" onClick={() => setOpen(false)}>Kapat</button>}>
-      <p className="text-xs text-[#8B8B9E] mb-3">Bankanın ödeme planı PDF’i varsa Ekstre sayfasından “Kredi ödeme planı” olarak yüklemek daha isabetlidir.</p>
+    <Card title="Yeni kredi" action={<button type="button" className="text-xs text-muted" onClick={() => setOpen(false)}>Kapat</button>}>
+      <p className="text-xs text-muted mb-3">Bankanın ödeme planı PDF’i varsa Ekstre sayfasından “Kredi ödeme planı” olarak yüklemek daha isabetlidir.</p>
       <form
         className="grid grid-cols-2 md:grid-cols-4 gap-3"
         onSubmit={e => {
@@ -71,20 +71,20 @@ export function LoanForm() {
           <input required type="date" className={inputClass} value={f.first_due_date} onChange={e => setF({ ...f, first_due_date: e.target.value })} />
         </Field>
         <label className="flex items-center gap-2 text-sm col-span-2 self-end pb-2">
-          <input type="checkbox" className="accent-[#00D4FF]" checked={f.include_taxes} onChange={e => setF({ ...f, include_taxes: e.target.checked })} />
+          <input type="checkbox" className="accent-[var(--accent)]" checked={f.include_taxes} onChange={e => setF({ ...f, include_taxes: e.target.checked })} />
           KKDF + BSMV uygulanır (tüketici kredisi)
         </label>
         <div className="col-span-2 md:col-span-4 flex flex-wrap items-center justify-between gap-3 pt-1">
-          <div className="text-sm text-[#8B8B9E]">
+          <div className="text-sm text-muted">
             {preview && (
               <>
-                Aylık taksit <strong className="text-[#F0F0F5]">{formatTRY(preview.pay, true)}</strong> · Toplam geri ödeme {formatTRY(preview.total)} · Faiz+vergi{' '}
+                Aylık taksit <strong className="text-ink">{formatTRY(preview.pay, true)}</strong> · Toplam geri ödeme {formatTRY(preview.total)} · Faiz+vergi{' '}
                 {formatTRY(preview.cost)}
               </>
             )}
           </div>
           <div className="flex items-center gap-2">
-            {error && <span className="text-xs text-[#f08a8a]">{error}</span>}
+            {error && <span className="text-xs text-crit">{error}</span>}
             <button type="submit" disabled={pending} className={buttonClass.primary}>
               Kaydet
             </button>

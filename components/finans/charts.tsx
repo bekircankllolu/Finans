@@ -14,24 +14,24 @@ import {
 } from 'recharts'
 import { formatCompactTRY, formatMonthShort, formatTRY } from '@/lib/finans/format'
 
-// Doğrulanmış koyu tema kategorik slotları (#16151F yüzeyinde CVD ve kontrast testinden geçti)
-export const SERIES = ['#3987e5', '#d95926', '#199e70'] as const
-const GRID = 'rgba(255,255,255,0.06)'
-const AXIS = '#8B8B9E'
+// Doğrulanmış kategorik slotlar; açık/koyu değerleri globals.css'te (CVD ve kontrast testinden geçti)
+export const SERIES = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)'] as const
+const GRID = 'var(--grid)'
+const AXIS = 'var(--axis)'
 
 type Row = { label: string; value: number; color?: string; strong?: boolean }
 
 function TooltipBox({ title, rows }: { title: string; rows: Row[] }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-[#0D0D14] px-3 py-2 text-xs shadow-xl min-w-[160px]">
-      <div className="text-[#8B8B9E] mb-1.5">{title}</div>
+    <div className="rounded-lg border border-line-strong bg-bg px-3 py-2 text-xs shadow-xl min-w-[160px]">
+      <div className="text-muted mb-1.5">{title}</div>
       {rows.map(r => (
         <div key={r.label} className="flex items-center justify-between gap-4 py-0.5">
-          <span className="flex items-center gap-1.5 text-[#8B8B9E]">
+          <span className="flex items-center gap-1.5 text-muted">
             {r.color && <span className="inline-block w-3 h-0.5 rounded" style={{ background: r.color }} />}
             {r.label}
           </span>
-          <span className={r.strong === false ? 'text-[#C3C2CF] tabular-nums' : 'text-[#F0F0F5] font-semibold tabular-nums'}>
+          <span className={r.strong === false ? 'text-ink-2 tabular-nums' : 'text-ink font-semibold tabular-nums'}>
             {formatTRY(r.value)}
           </span>
         </div>
@@ -42,7 +42,7 @@ function TooltipBox({ title, rows }: { title: string; rows: Row[] }) {
 
 export function Legend({ items, shape = 'rect' }: { items: { label: string; color: string }[]; shape?: 'rect' | 'line' }) {
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#8B8B9E] mb-3">
+    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted mb-3">
       {items.map(i => (
         <span key={i.label} className="flex items-center gap-1.5">
           <span
@@ -74,7 +74,7 @@ export function IncomeExpenseChart({ data }: { data: { month: string; income: nu
             <XAxis dataKey="label" {...axisProps} interval="preserveStartEnd" />
             <YAxis {...axisProps} width={56} tickFormatter={v => formatCompactTRY(Number(v))} />
             <Tooltip
-              cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+              cursor={{ fill: 'var(--hover)' }}
               content={({ active, payload }) => {
                 if (!active || !payload?.length) return null
                 const p = payload[0].payload as (typeof rows)[number]
@@ -112,9 +112,9 @@ export function ForecastChart({
           <CartesianGrid vertical={false} stroke={GRID} />
           <XAxis dataKey="label" {...axisProps} />
           <YAxis {...axisProps} width={56} tickFormatter={v => formatCompactTRY(Number(v))} />
-          <ReferenceLine y={0} stroke="#5A5A6E" />
+          <ReferenceLine y={0} stroke="var(--faint)" />
           <Tooltip
-            cursor={{ stroke: 'rgba(255,255,255,0.25)', strokeWidth: 1 }}
+            cursor={{ stroke: 'var(--line-strong)', strokeWidth: 1 }}
             content={({ active, payload }) => {
               if (!active || !payload?.length) return null
               const p = payload[0].payload as (typeof rows)[number]
@@ -132,7 +132,7 @@ export function ForecastChart({
               )
             }}
           />
-          <Line isAnimationActive={false} type="monotone" dataKey="endBalance" stroke={SERIES[0]} strokeWidth={2} dot={{ r: 4, fill: SERIES[0], stroke: '#16151F', strokeWidth: 2 }} activeDot={{ r: 5 }} />
+          <Line isAnimationActive={false} type="monotone" dataKey="endBalance" stroke={SERIES[0]} strokeWidth={2} dot={{ r: 4, fill: SERIES[0], stroke: 'var(--surface)', strokeWidth: 2 }} activeDot={{ r: 5 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -164,7 +164,7 @@ export function PayoffChart({ series }: { series: { key: string; label: string; 
             <XAxis dataKey="month" {...axisProps} tickFormatter={v => `${v}. ay`} />
             <YAxis {...axisProps} width={56} tickFormatter={v => formatCompactTRY(Number(v))} />
             <Tooltip
-              cursor={{ stroke: 'rgba(255,255,255,0.25)', strokeWidth: 1 }}
+              cursor={{ stroke: 'var(--line-strong)', strokeWidth: 1 }}
               content={({ active, payload, label }) => {
                 if (!active || !payload?.length) return null
                 return (
@@ -195,7 +195,7 @@ export function CategoryTrendChart({ data, label }: { data: { month: string; val
           <XAxis dataKey="label" {...axisProps} interval="preserveStartEnd" />
           <YAxis {...axisProps} width={52} tickFormatter={v => formatCompactTRY(Number(v))} />
           <Tooltip
-            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+            cursor={{ fill: 'var(--hover)' }}
             content={({ active, payload }) =>
               active && payload?.length ? (
                 <TooltipBox title={(payload[0].payload as (typeof rows)[number]).label} rows={[{ label, value: Number(payload[0].value), color: SERIES[0] }]} />

@@ -33,7 +33,7 @@ export default async function BudgetPage() {
           <div className="overflow-x-auto -mx-5 px-5 mt-4">
             <table className="w-full text-sm min-w-[620px]">
               <thead>
-                <tr className="text-left text-xs text-[#8B8B9E] border-b border-white/8">
+                <tr className="text-left text-xs text-muted border-b border-line">
                   <th className="py-2 font-medium">Ay</th>
                   <th className="py-2 font-medium text-right">Gelir</th>
                   <th className="py-2 font-medium text-right">Harcama</th>
@@ -43,7 +43,7 @@ export default async function BudgetPage() {
                   <th className="py-2 font-medium text-right">Ay sonu</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/6 tabular-nums">
+              <tbody className="divide-y divide-line tabular-nums">
                 {s.forecast.map(f => (
                   <tr key={f.month}>
                     <td className="py-2">{formatMonthLong(f.month)}</td>
@@ -51,15 +51,15 @@ export default async function BudgetPage() {
                     <td className="py-2 text-right">{formatTRY(f.baseSpend)}</td>
                     <td className="py-2 text-right">{formatTRY(f.loanPayments)}</td>
                     <td className="py-2 text-right">{formatTRY(f.cardInstallments)}</td>
-                    <td className={`py-2 text-right ${f.net < 0 ? 'text-[#ec835a]' : ''}`}>{formatTRY(f.net)}</td>
-                    <td className={`py-2 text-right font-medium ${f.endBalance < 0 ? 'text-[#ec835a]' : ''}`}>{formatTRY(f.endBalance)}</td>
+                    <td className={`py-2 text-right ${f.net < 0 ? 'text-serious' : ''}`}>{formatTRY(f.net)}</td>
+                    <td className={`py-2 text-right font-medium ${f.endBalance < 0 ? 'text-serious' : ''}`}>{formatTRY(f.endBalance)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           {s.recurringIncome === 0 && (
-            <p className="text-xs text-[#fab219] mt-3">
+            <p className="text-xs text-warn mt-3">
               Düzenli gelir tanımlı değil; tahmin eksik. <Link href="/finans/ayarlar" className="underline">Ayarlar’dan maaş/gelir ekle</Link>.
             </p>
           )}

@@ -3,7 +3,9 @@ import Anthropic from '@anthropic-ai/sdk'
 
 export const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-// Ekstre okuma ve sohbet: hızlı model. Aylık rapor (nadiren, derin analiz): en yetenekli model.
+// Ekstre çıkarımı ve kontrol turu: doğruluk öncelikli, en yetenekli model.
+// Kredi planı okuma ve sohbet: hızlı model. Aylık rapor: en yetenekli model.
+export const EXTRACT_MODEL = 'claude-opus-5-5'
 export const PARSE_MODEL = 'claude-sonnet-5-5'
 export const CHAT_MODEL = 'claude-sonnet-5-5'
 export const ADVISOR_MODEL = 'claude-opus-5-5'
