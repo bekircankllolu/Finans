@@ -483,7 +483,7 @@ export function CategorySettings({
         <ul className="divide-y divide-line max-h-96 overflow-y-auto pr-1">
           {categories.map(c => (
             <li key={c.id} className="py-2 flex items-center justify-between gap-3 text-sm">
-              <span className="truncate">
+              <span className="min-w-0 flex-1 break-words">
                 {c.name} <span className="text-xs text-faint">{KIND_LABELS[c.kind]}</span>
               </span>
               <span className="flex items-center gap-2 shrink-0">

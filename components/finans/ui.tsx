@@ -5,12 +5,12 @@ import { formatTRY } from '@/lib/finans/format'
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6 lg:mb-8">
+    <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between mb-7 lg:mb-9">
       <div className="min-w-0">
         <h1 className="text-[26px] leading-tight font-semibold tracking-tight">{title}</h1>
         {subtitle && <p className="text-sm text-muted mt-1.5">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex min-w-0 flex-wrap items-center gap-3">{actions}</div>}
     </div>
   )
 }
@@ -31,8 +31,8 @@ export function Section({
 }) {
   return (
     <section className={cn('mb-8 lg:mb-10', className)}>
-      <div className="flex items-end justify-between gap-3 mb-3">
-        <div>
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+        <div className="min-w-0">
           <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
           {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
         </div>
@@ -57,10 +57,10 @@ export function Card({
   padded?: boolean
 }) {
   return (
-    <div className={cn('bg-surface border border-line rounded-2xl shadow-card min-w-0', padded && 'p-5', className)}>
+    <div className={cn('bg-surface border border-line rounded-2xl shadow-card min-w-0', padded && 'p-5 sm:p-6', className)}>
       {(title || action) && (
-        <div className={cn('flex items-center justify-between gap-3', padded ? 'mb-4' : 'px-5 pt-5 pb-3')}>
-          {title && <h3 className="text-sm font-medium text-ink-2">{title}</h3>}
+        <div className={cn('flex flex-wrap items-center justify-between gap-3', padded ? 'mb-5' : 'px-5 sm:px-6 pt-5 sm:pt-6 pb-4')}>
+          {title && <h3 className="text-base font-semibold text-ink-2 min-w-0 break-words">{title}</h3>}
           {action}
         </div>
       )}
@@ -89,12 +89,12 @@ export function Stat({
   const showDelta = delta != null && Number.isFinite(delta) && Math.abs(delta) >= 1
   const good = showDelta && (deltaGoodWhenUp ? delta! >= 0 : delta! <= 0)
   return (
-    <div className="bg-surface border border-line rounded-2xl shadow-card p-4 min-w-0">
+    <div className="bg-surface border border-line rounded-2xl shadow-card p-5 min-w-0">
       <div className="text-xs text-muted">{label}</div>
-      <div className={cn('text-xl sm:text-[22px] font-semibold mt-1.5 truncate tabular-nums tracking-tight', tone === 'good' && 'text-good', tone === 'crit' && 'text-crit')}>
+      <div className={cn('text-xl sm:text-[22px] font-semibold mt-2 break-words tabular-nums tracking-tight', tone === 'good' && 'text-good', tone === 'crit' && 'text-crit')}>
         {value}
       </div>
-      <div className="text-[11px] mt-1 text-muted min-h-[16px] leading-snug line-clamp-2">
+      <div className="text-xs mt-2 text-muted min-h-[32px] leading-relaxed">
         {showDelta && (
           <span className={good ? 'text-good' : 'text-serious'}>
             {delta! >= 0 ? '▲' : '▼'} {formatTRY(Math.abs(delta!))}{' '}
@@ -169,7 +169,7 @@ export function Money({ value, className, signed, precise }: { value: number; cl
 }
 
 export const inputClass =
-  'w-full bg-surface border border-line-strong rounded-lg px-3 py-2 text-sm text-ink placeholder:text-faint focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition'
+  'w-full min-w-0 bg-surface border border-line-strong rounded-xl px-3.5 py-2.5 text-sm text-ink placeholder:text-faint focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition'
 
 export const buttonClass = {
   primary:
@@ -183,7 +183,7 @@ export const buttonClass = {
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="text-xs text-muted font-medium mb-1.5 block">{label}</span>
       {children}
       {hint && <span className="text-[11px] text-faint mt-1 block">{hint}</span>}

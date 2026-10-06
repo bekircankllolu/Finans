@@ -28,7 +28,7 @@ export default async function FinansLayout({ children }: { children: React.React
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full">
       <FinansNav theme={theme} />
-      <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 pb-24 lg:pb-12 max-w-[1440px] mx-auto w-full">{children}</main>
+      <main className="finance-content flex-1 min-w-0 px-4 sm:px-7 lg:px-8 xl:px-10 py-7 lg:py-10 pb-28 lg:pb-14 max-w-[1600px] mx-auto w-full">{children}</main>
     </div>
   )
 }

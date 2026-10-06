@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { ArrowRight, FileUp, Sparkles } from 'lucide-react'
 import { AlertList } from '@/components/finans/AlertList'
 import { ForecastChart, IncomeExpenseChart } from '@/components/finans/LazyCharts'
+import { SpendingOverview } from '@/components/finans/SpendingOverview'
+import { spendingBreakdown } from '@/lib/finans/calc/spending'
 import { PeriodPicker } from '@/components/finans/PeriodPicker'
 import { Badge, BankMark, buttonClass, Card, Empty, Money, PageHeader, Progress, Section, Stat } from '@/components/finans/ui'
 import { addMonths, diffDays, monthKey } from '@/lib/finans/calc/dates'
@@ -40,7 +42,7 @@ export default async function FinansDashboard({ searchParams }: { searchParams: 
   const sel = { month, mode }
   const cur = summarizePeriod(data.transactions, data.categories, data.accounts, data.statements, sel)
   const prev = summarizePeriod(data.transactions, data.categories, data.accounts, data.statements, { month: addMonths(month, -1), mode })
-  const prevByCat = new Map(prev.byCategory.map(c => [c.categoryId, c.amount]))
+  const spending = spendingBreakdown(data.transactions, data.categories, data.accounts, data.statements, sel)
   const cardInfo = new Map(s.cards.map(c => [c.account.id, c]))
 
   const upcoming = [
@@ -109,11 +111,11 @@ export default async function FinansDashboard({ searchParams }: { searchParams: 
       />
 
       {/* 1. Durum şeridi */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-8 lg:mb-10">
+      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-4 mb-8 lg:mb-10">
         <Stat label="Gelir" value={<Money value={cur.income} />} delta={cur.income - prev.income} />
         <Stat label="Gider" value={<Money value={cur.expense} />} delta={cur.expense - prev.expense} deltaGoodWhenUp={false} />
         <Stat
-          label="Net"
+          label="Gelirden kalan"
           value={<Money value={cur.net} signed />}
           tone={cur.net < 0 ? 'crit' : undefined}
           hint={cur.savingsRate != null ? `Tasarruf oranı ${formatPct(cur.savingsRate)}` : 'Bu dönem gelir yok'}
@@ -133,69 +135,34 @@ export default async function FinansDashboard({ searchParams }: { searchParams: 
           </Link>
         }
       >
-        <div className="grid lg:grid-cols-12 gap-4">
-          <Card className="lg:col-span-7" title="Kategoriler">
-            {cur.byCategory.length === 0 ? (
-              <p className="text-sm text-muted">Bu dönemde gider yok.</p>
-            ) : (
-              <>
-                <ul className="space-y-3.5">
-                  {cur.byCategory.slice(0, 10).map(c => {
-                    const p = prevByCat.get(c.categoryId) ?? 0
-                    const diff = p > 0 ? (c.amount - p) / p : null
-                    return (
-                      <li key={c.categoryId}>
-                        <div className="flex items-baseline justify-between gap-3 text-sm">
-                          <span className="truncate">{c.name}</span>
-                          <span className="flex items-baseline gap-2.5 shrink-0">
-                            {diff != null && Math.abs(diff) >= 0.15 && (
-                              <span className={cn('text-[11px]', diff > 0 ? 'text-serious' : 'text-good')} title="Önceki döneme göre">
-                                {diff > 0 ? '▲' : '▼'} %{Math.round(Math.abs(diff) * 100)}
-                              </span>
-                            )}
-                            <span className="font-medium tabular-nums">{formatTRY(c.amount)}</span>
-                            <span className="text-xs text-faint w-9 text-right tabular-nums">%{Math.round(c.share * 100)}</span>
-                          </span>
-                        </div>
-                        <div className="h-1.5 mt-1.5 rounded-full bg-surface-2">
-                          <div className="h-full rounded-full bg-series-1" style={{ width: `${(c.amount / cur.byCategory[0].amount) * 100}%` }} />
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-                {cur.byCategory.length > 10 && (
-                  <p className="text-xs text-muted mt-3">
-                    +{cur.byCategory.length - 10} kategori daha: {formatTRY(cur.byCategory.slice(10).reduce((a, c) => a + c.amount, 0))}
-                  </p>
-                )}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5 pt-4 border-t border-line">
-                  {(
-                    [
-                      ['Sabit giderler', cur.split.fixed],
-                      ['Değişken', cur.split.variable],
-                      ['Taksitler', cur.split.installments],
-                      ['Faiz & ücretler', cur.split.bankCosts],
-                    ] as const
-                  ).map(([label, v]) => (
-                    <div key={label} className="rounded-xl bg-surface-2 px-3 py-2">
-                      <div className="text-[11px] text-muted">{label}</div>
-                      <div className="text-sm font-medium tabular-nums">{formatTRY(v)}</div>
-                      <div className="text-[11px] text-faint tabular-nums">%{Math.round((v / splitTotal) * 100)}</div>
-                    </div>
-                  ))}
+        <SpendingOverview key={`${month}-${mode}`} {...spending} income={cur.income} expense={cur.expense} period={formatMonthLong(month)} />
+        <div className="grid lg:grid-cols-2 gap-6 mt-6">
+          <Card title="Harcama türleri">
+            <p className="text-sm text-muted mb-5">Harcamaların hangi tür ödemelerden oluşuyor?</p>
+            <div className="grid grid-cols-2 gap-4">
+              {([
+                ['Sabit ödemeler', 'Kira, fatura gibi düzenli giderler', cur.split.fixed],
+                ['Günlük harcamalar', 'Market, yemek ve diğer alışverişler', cur.split.variable],
+                ['Taksitli alışverişler', 'Bu dönemde ödenen alışveriş taksitleri', cur.split.installments],
+                ['Faiz ve banka ücretleri', 'Faiz, vergi ve işlem ücretleri', cur.split.bankCosts],
+              ] as const).map(([label, hint, value]) => (
+                <div key={label} className="rounded-2xl bg-surface-2 p-4 min-w-0">
+                  <div className="text-sm font-medium">{label}</div>
+                  <div className="text-xl font-semibold tabular-nums my-2 break-all">{formatTRY(value)}</div>
+                  <div className="text-xs text-muted leading-relaxed">{hint}</div>
+                  <div className="text-xs text-muted mt-2">Net giderin %{Math.round(value / splitTotal * 100)} kadarı</div>
                 </div>
-              </>
-            )}
+              ))}
+            </div>
           </Card>
 
-          <Card className="lg:col-span-5" title="En çok harcanan yerler">
+          <Card title="En çok harcanan yerler">
             {cur.topMerchants.length === 0 ? (
               <p className="text-sm text-muted">Bu dönemde harcama yok.</p>
             ) : (
               <ol className="divide-y divide-line">
                 {cur.topMerchants.map((m, i) => (
-                  <li key={m.merchant} className="flex items-center gap-3 py-2">
+                  <li key={m.merchant} className="flex items-center gap-3 py-3">
                     <span className="w-5 text-xs text-faint tabular-nums">{i + 1}</span>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm truncate">{m.merchant}</div>
@@ -231,7 +198,7 @@ export default async function FinansDashboard({ searchParams }: { searchParams: 
                     </div>
                   </div>
                 </div>
-                <div className="flex items-end justify-between mt-4">
+                <div className="flex flex-wrap items-end justify-between gap-3 mt-4">
                   <div>
                     <div className="text-[11px] text-muted">{a.account.type === 'credit_card' ? 'Dönem harcaması' : 'Çıkış'}</div>
                     <div className="text-xl font-semibold tabular-nums tracking-tight">{formatTRY(a.spend)}</div>
@@ -393,11 +360,12 @@ export default async function FinansDashboard({ searchParams }: { searchParams: 
         <div className="grid lg:grid-cols-12 gap-4">
           <Card className="lg:col-span-7" title="Gelir ve gider · 12 ay">
             <IncomeExpenseChart data={s.months} />
+            <p className="text-xs text-muted mt-4 leading-relaxed">Mavi çubuk gelen parayı, turuncu çubuk harcanan parayı gösterir. Turuncu daha yüksekse o ay gelirinden fazla harcamışsın.</p>
           </Card>
           <Card className="lg:col-span-5" title="Nakit akışı tahmini · 6 ay">
             <ForecastChart data={s.forecast} />
-            <p className="text-[11px] text-faint mt-2">
-              Düzenli gelir {formatTRY(s.recurringIncome)} − ort. harcama {formatTRY(s.baseSpend)} − kredi ve kart taksitleri. Başlangıç: nakit − kart/KMH borcu.
+            <p className="text-xs text-muted mt-4 leading-relaxed">
+              Çizgi, ay sonunda elinde kalabilecek parayı gösterir. Sıfırın altına inerse para açığı olabilir. Düzenli gelir, geçmiş harcamalar ve taksitlere göre tahmindir; kesin sonuç değildir.
             </p>
           </Card>
         </div>
@@ -429,7 +397,7 @@ export default async function FinansDashboard({ searchParams }: { searchParams: 
           <ul className="space-y-3">
             {s.health.factors.map(f => (
               <li key={f.key} title={f.hint}>
-                <div className="flex justify-between text-xs mb-1">
+                <div className="flex flex-wrap justify-between gap-2 text-xs mb-2">
                   <span className="text-ink-2">{f.label}</span>
                   <span className="tabular-nums">{f.value}</span>
                 </div>
@@ -459,7 +427,7 @@ export default async function FinansDashboard({ searchParams }: { searchParams: 
             <ul className="space-y-3">
               {s.budgets.map(b => (
                 <li key={b.budget.id}>
-                  <div className="flex justify-between text-sm mb-1">
+                  <div className="flex flex-wrap justify-between gap-2 text-sm mb-2">
                     <span>{b.categoryName}</span>
                     <span className="text-ink-2 tabular-nums">
                       {formatTRY(b.spent)} / {formatTRY(b.budget.monthly_limit)}
@@ -470,7 +438,7 @@ export default async function FinansDashboard({ searchParams }: { searchParams: 
               ))}
               {s.goals.map(g => (
                 <li key={g.goal.id}>
-                  <div className="flex justify-between text-sm mb-1">
+                  <div className="flex flex-wrap justify-between gap-2 text-sm mb-2">
                     <span>{g.goal.name}</span>
                     <span className="text-ink-2 tabular-nums">
                       {formatTRY(g.goal.current_amount)} / {formatTRY(g.goal.target_amount)}
@@ -488,7 +456,7 @@ export default async function FinansDashboard({ searchParams }: { searchParams: 
           ) : (
             <ul className="divide-y divide-line">
               {s.recurring.slice(0, 8).map(r => (
-                <li key={r.merchant} className="py-2 flex items-center justify-between gap-3 text-sm">
+                <li key={r.merchant} className="py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
                   <span className="truncate">{r.merchant}</span>
                   <span className="shrink-0 tabular-nums">
                     {formatTRY(r.avgAmount)}

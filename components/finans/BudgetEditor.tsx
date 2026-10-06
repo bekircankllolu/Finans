@@ -31,7 +31,7 @@ export function BudgetEditor({ rows }: { rows: BudgetRow[] }) {
   return (
     <div style={{ opacity: pending ? 0.7 : 1 }}>
       {error && <p className="text-sm text-crit mb-2">{error}</p>}
-      <div className="overflow-x-auto -mx-5 px-5">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[560px]">
           <thead>
             <tr className="text-left text-xs text-muted border-b border-line">

@@ -30,14 +30,14 @@ export function FinansNav({ theme }: { theme: Theme }) {
 
   return (
     <>
-      <aside className="hidden lg:flex flex-col w-60 shrink-0 border-r border-line bg-surface h-screen sticky top-0 px-3 py-5">
+      <aside className="hidden lg:flex flex-col w-60 shrink-0 border-r border-line bg-surface h-screen sticky top-0 px-4 py-7">
         <Link href="/finans" className="flex items-center gap-2.5 px-2.5 mb-7">
           <div className="w-8 h-8 rounded-xl bg-accent flex items-center justify-center">
             <Wallet className="w-4 h-4 text-accent-fg" />
           </div>
           <span className="font-semibold text-[15px] tracking-tight">Finans</span>
         </Link>
-        <nav className="flex flex-col gap-0.5">
+        <nav className="flex flex-col gap-1.5">
           {ITEMS.map(({ href, label, icon: Icon, match }) => (
             <Link
               key={href}

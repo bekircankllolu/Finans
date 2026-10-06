@@ -5,9 +5,9 @@
 
 :root {
   color-scheme: light;
-  --bg: #f5f5f2;
+  --bg: #f3f4fa;
   --surface: #ffffff;
-  --surface-2: #f2f2ee;
+  --surface-2: #f2f4fa;
   --hover: rgba(11, 11, 11, 0.04);
   --line: rgba(11, 11, 11, 0.08);
   --line-strong: rgba(11, 11, 11, 0.14);
@@ -15,9 +15,9 @@
   --ink-2: #3a3a3d;
   --muted: #67676d;
   --faint: #8d8d93;
-  --accent: #0b6bcb;
+  --accent: #5260ed;
   --accent-fg: #ffffff;
-  --accent-soft: rgba(11, 107, 203, 0.1);
+  --accent-soft: rgba(82, 96, 237, 0.09);
   --good: #0a7f0a;
   --warn: #9a6200;
   --crit: #c62f2f;
@@ -26,14 +26,14 @@
   --warn-bg: rgba(250, 178, 25, 0.16);
   --crit-bg: rgba(208, 59, 59, 0.1);
   /* Grafik: doğrulanmış kategorik slotlar (açık yüzey) */
-  --series-1: #2a78d6;
+  --series-1: #5260ed;
   --series-2: #eb6834;
   --series-3: #1baf7a;
   --grid: rgba(11, 11, 11, 0.07);
   --axis: #77777d;
   --skeleton: #ececE8;
   --skeleton-shine: #f6f6f3;
-  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 1px 1px rgba(11, 11, 11, 0.02);
+  --shadow: 0 4px 24px rgba(36, 44, 92, 0.04), 0 1px 3px rgba(36, 44, 92, 0.03);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -178,3 +178,9 @@ body {
     animation: none;
   }
 }
+
+/* Common content spacing: forms and scrolling tables stay inside their cards. */
+.finance-content :where(input, select, textarea) { max-width: 100%; }
+.finance-content .grid > * { min-width: 0; }
+.finance-content :where(th, td) { vertical-align: top; }
+.finance-content :where(button, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

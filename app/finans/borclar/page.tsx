@@ -94,7 +94,7 @@ export default async function DebtsPage() {
             <p className="text-sm text-muted">Ekstrelerde devam eden taksitli alışveriş yok.</p>
           ) : (
             <>
-              <div className="overflow-x-auto -mx-5 px-5">
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[420px]">
                   <thead>
                     <tr className="text-left text-xs text-muted border-b border-line">

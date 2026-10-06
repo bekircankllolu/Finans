@@ -30,7 +30,7 @@ export default async function BudgetPage() {
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
         <Card title="6 aylık nakit akışı" className="lg:col-span-2">
           <ForecastChart data={s.forecast} />
-          <div className="overflow-x-auto -mx-5 px-5 mt-4">
+          <div className="overflow-x-auto mt-4">
             <table className="w-full text-sm min-w-[620px]">
               <thead>
                 <tr className="text-left text-xs text-muted border-b border-line">
