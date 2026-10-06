@@ -46,7 +46,7 @@ export default async function StatementsPage() {
   const row = (st: Statement) => {
     const status = STATUS[st.status]
     const amount = st.total_debt ?? st.closing_balance
-    const href = st.status === 'confirmed' ? `/finans/islemler?ekstre=${st.id}` : `/finans/yukle/${st.id}`
+    const href = `/finans/yukle/${st.id}`
     return (
       <li key={st.id} className="flex items-center gap-3 py-3">
         <BankMark name={st.bank ?? (st.account_id ? accountName.get(st.account_id) ?? null : null)} />
@@ -58,6 +58,7 @@ export default async function StatementsPage() {
             {st.kind === 'loan_schedule' ? 'Kredi ödeme planı' : st.period_end ? `Dönem sonu ${formatDateTR(st.period_end)}` : st.file_name}
             {amount != null && ` · ${formatTRY(amount)}`}
           </div>
+          <div className="text-[11px] text-muted truncate" title={st.file_name}>{st.file_name}</div>
           <div className="mt-0.5 flex flex-wrap items-center gap-2">
             <Badge tone={status.tone}>{status.label}</Badge>
             <ReconcileMark st={st} />

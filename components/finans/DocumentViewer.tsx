@@ -18,7 +18,10 @@ export function DocumentViewer({ statementId, mimeType }: { statementId: string;
     fetch(`/api/finans/statements/${statementId}/file`)
       .then(async r => {
         const body = await r.json()
-        if (!r.ok) throw new Error(body.error)
+        if (!r.ok) throw new Error(body.error || 'Belge açılamadı')
+        if (!Array.isArray(body.files) || body.files.length === 0 || body.files.some((file: FileInfo) => !file.url)) {
+          throw new Error('Orijinal dosya bulunamadı veya dosyaya erişilemiyor.')
+        }
         if (alive) setFiles(body.files)
       })
       .catch(err => alive && setError(err instanceof Error ? err.message : 'Belge açılamadı'))
