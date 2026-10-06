@@ -7,7 +7,8 @@ import { TX_TYPE_LABELS, TX_TYPES } from '../txTypes'
 import { anthropic, assertNotRefused, EXTRACT_MODEL, PARSE_MODEL } from './client'
 import {
   loanSchema,
-  statementSchema,
+  statementOutputSchema,
+  normalizeStatementOutput,
   verifySchema,
   type ParsedLoanSchedule,
   type ParsedStatement,
@@ -138,7 +139,7 @@ export async function extractStatement(content: Anthropic.ContentBlockParam[], c
   const stream = anthropic.messages.stream({
     model: EXTRACT_MODEL,
     max_tokens: 64000,
-    output_config: { effort: 'high', format: zodOutputFormat(statementSchema(ctx.categoryNames)) },
+    output_config: { effort: 'high', format: zodOutputFormat(statementOutputSchema(ctx.categoryNames)) },
     system: STATEMENT_SYSTEM,
     messages: [
       {
@@ -156,7 +157,7 @@ export async function extractStatement(content: Anthropic.ContentBlockParam[], c
   const message = await stream.finalMessage()
   assertNotRefused(message)
   if (!message.parsed_output) throw new Error('Ekstre okunamadı.')
-  return message.parsed_output
+  return normalizeStatementOutput(message.parsed_output, ctx.categoryNames)
 }
 
 export async function verifyStatement(

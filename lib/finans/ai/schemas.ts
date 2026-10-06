@@ -97,3 +97,33 @@ export type ParsedStatement = z.infer<ReturnType<typeof statementSchema>>
 export type ParsedTransaction = ParsedStatement['transactions'][number]
 export type VerifyResult = z.infer<ReturnType<typeof verifySchema>>
 export type ParsedLoanSchedule = z.infer<typeof loanSchema>
+
+// Anthropic permits at most 16 union/nullable parameters per output schema.
+// Unknown descriptive text is omitted on the wire, then restored to null for
+// the existing domain schema. Numeric totals and dates keep their null semantics.
+export const statementOutputSchema = (categoryNames: string[]) => {
+  const schema = statementSchema(categoryNames)
+  return schema.extend({
+    bank: schema.shape.bank.unwrap().optional().describe('Banka adı; bilinmiyorsa bu alanı yazma'),
+    card_brand: schema.shape.card_brand.unwrap().optional().describe('Kart markası/ürünü; bilinmiyorsa bu alanı yazma'),
+    account_name: schema.shape.account_name.unwrap().optional().describe('Kart/hesap adı; bilinmiyorsa bu alanı yazma'),
+    last4: schema.shape.last4.unwrap().optional().describe('Kart/hesap numarasının sadece son 4 hanesi; bilinmiyorsa bu alanı yazma'),
+    transactions: z.array(extractedTransaction(categoryNames).extend({
+      original_currency: z.string().optional().describe('Döviz işleminin orijinal para birimi (USD, EUR); yoksa bu alanı yazma'),
+    })),
+  })
+}
+
+export function normalizeStatementOutput(
+  output: z.infer<ReturnType<typeof statementOutputSchema>>,
+  categoryNames: string[],
+): ParsedStatement {
+  return statementSchema(categoryNames).parse({
+    ...output,
+    bank: output.bank ?? null,
+    card_brand: output.card_brand ?? null,
+    account_name: output.account_name ?? null,
+    last4: output.last4 ?? null,
+    transactions: output.transactions.map(transaction => ({ ...transaction, original_currency: transaction.original_currency ?? null })),
+  })
+}
